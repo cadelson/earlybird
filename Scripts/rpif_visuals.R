@@ -4,7 +4,7 @@
 # DATE: Apr 22, 2022
 # NOTES: 
 
-df_rpif_path <- "~/Github/pinchworm/Data/rpif_february_22_v1.xlsx"
+df_rpif_path <- "~/Github/earlybird/Data/rpif_april_22_v1.xlsx"
 df_rpif<- read.xlsx(df_rpif_path)
 `%notin%` <- Negate(`%in%`)
 
@@ -35,7 +35,7 @@ df_rpif %>%
                      labels = label_number_si())+
   scale_fill_identity()+
   theme(axis.text.x = element_blank())+
-  labs(title = toupper("total guinea worm rumours through February 2022"),
+  labs(title = toupper("total guinea worm rumours through April 2022"),
        x = NULL, y= NULL)
 
 si_save("Graphics/rpif_rumours_pop_pyramid_ten_yr.png")
@@ -206,7 +206,7 @@ df_rpif %>%
                      labels = label_number_si())+
   scale_fill_identity()+
   theme(axis.text.x = element_blank())+
-  labs(title = toupper("2022 guinea worm rumours through february (n=6,753)"),
+  labs(title = toupper("2022 guinea worm rumours through april (n=15,474)"),
        x = NULL, y= NULL)
 
 si_save("Graphics/rpif_rumours_pop_pyramid_share.png")
@@ -241,10 +241,10 @@ df_rpif %>%
   scale_fill_identity()+
   theme(axis.text.x = element_blank(),
         plot.title = element_text(hjust = .15))+
-  labs(title = toupper("2022 guinea worm rumours through february (n=6,753)"),
+  labs(title = toupper("2022 guinea worm rumours through april (n=15,474)"),
        x = NULL, y= NULL)
 
-si_save("Graphics/rpif_rumours_pop_pyramid_share.png", width=8, height=7)
+si_save("Images/rpif_rumours_pop_pyramid_share.png", width=8, height=7)
 
 #Total Population Pyramid SHARE with larger age buckets
 df_rpif %>% 
@@ -289,7 +289,7 @@ df_rpif %>%
   clean_names() %>% remove_empty() %>%
   mutate_all(trimws, which="both") %>% 
   filter(age!="NA",
-         county_of_detection %notin% c("CUEIBET", "LEER", "WULU", "TONJ_SOUTH", "WAU", "KAPOETA_NORTH", "IKOTOS", "AKOBO")) %>% 
+         county_of_detection %notin% c("Cueibet", "Leer", "Wulu", "Tonj South", "Wau", "Kapoeta North", "Ikotos", "Akobo", "Kapoeta South")) %>% 
   group_by(county_of_detection) %>% 
   mutate(age=as.double(age),
          avg_age=mean(age)) %>%
@@ -343,7 +343,7 @@ df_rpif %>%
   theme(panel.spacing = unit(0.01, "lines"),
         axis.text.x = element_blank(),
         axis.text.y=element_text(size=7))+
-  labs(title = toupper("proportion of guinea worm rumours by county through February 2022 (n>150)"),
+  labs(title = toupper("guinea worm rumours by age and sex through april 2022 (n>150)"),
        x = NULL, y= NULL)
 
-si_save("Graphics/rpif_rumours_pop_pyramid_county_small_bucket_share2.png")
+si_save("Images/rpif_rumours_april_pop_pyramid_county_small_bucket_share.png")

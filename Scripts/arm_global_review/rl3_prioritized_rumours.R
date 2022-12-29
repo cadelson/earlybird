@@ -1,79 +1,59 @@
-df_p_rumours<-
-tibble::tribble(
-      ~category, ~value, ~day,
-  "prioritized", 16621L,  "a",
-        "other",  5347L,  "a"
-  )
+# PURPOSE: Create visualization for rumours, risk level 3 counties
+# AUTHOR: Cody Adelson | Data Manager
+# LICENSE: MIT
+# DATE: November 24, 2022
 
 
+`%notin%` <- Negate(`%in%`)
+current_month<-c("October")
+month_order<- c("January", "February", "March", "April", "May", "June", "July", "August", "September") 
 
-category_color_order<-c(moody_blue_light, moody_blue)
+# Munge data for humans and animals
+df_rl3_rumours <- df_21_22 %>% 
+  filter(indicator %in% c("rumours_total", "rumours_invest_24", "suspects_total"),
+         year=="2022",
+         risk_level %in% c("Risk Level 3"),
+         sheet %in% c("MSR_Surv", "Non_MSR_Surv", "Non_MSR_Other")) %>%
+  group_by(county, indicator) %>% 
+  summarise(across(c(value), sum, na.rm=TRUE)) %>% 
+  ungroup() %>%
+  pivot_wider(names_from=indicator, values_from=value) %>%
+  ungroup() %>% 
+  mutate(rumours_invest_24=rumours_invest_24/rumours_total,
+         rumours_ns=rumours_total-suspects_total) %>% 
+  rename("Rumours"=rumours_ns,
+         "Rumours Investigated <24 Hours"=rumours_invest_24,
+         "Suspects"=suspects_total) %>%
+  pivot_longer(c(Rumours, `Rumours Investigated <24 Hours`, Suspects), names_to = "indicator") %>%
+  mutate(
+    indicator_fill_color=case_when(
+      indicator == "Rumours" ~ burnt_sienna_light,
+      indicator == "Rumours Investigated <24 Hours" ~ burnt_sienna_light,
+      indicator == "Suspects" ~ burnt_sienna),
+    value_label = case_when(
+      indicator == "Suspects" ~ comma(round(value, digits=0))))
 
-
-df_p_rumours %>% 
-  mutate(value = as.numeric(value)) %>%
-  mutate(category_color=case_when(
-           category=="prioritized" ~moody_blue,
-           category=="other" ~moody_blue_light),
-         category_color=fct_relevel(category_color, category_color_order)) %>% 
-  ggplot(aes(x=day, y=value, fill=category_color), leg)+
-  geom_bar(position="stack", stat="identity", show.legend=FALSE, width=.5)+
-  #geom_col(alpha=.9, show.legend = FALSE)+
-  #geom_text(aes(label=(value)), na.rm=TRUE, color=trolley_grey, vjust=0, size=12, family="Source Sans Pro SemiBold")+
-  scale_y_continuous(label=comma, breaks=seq(0, 20000, 10000))+
-  si_style_ygrid()+
+  
+df_rl3_rumours %>% 
+  filter(indicator %in% c("Rumours", "Suspects", rumours_total),
+         county %notin% c("Uror", "Nyirol", "Torit", "Lafon")) %>% 
+  mutate(county = fct_reorder(county, rumours_total)) %>% 
+  ggplot(aes(county, value, fill=forcats::fct_rev(indicator_fill_color)))+
+  geom_bar(
+    position="stack", stat="identity", show.legend=FALSE)+
+  scale_y_continuous(labels = comma, limits = c(0, 3000)) +
+  coord_flip() +
+  geom_text(aes(label=value_label), size=18/.pt, color="white", family="Source Sans Pro", hjust = 0)+
+  geom_text(aes(x=county, y=rumours_total, label=comma(rumours_total)), size=18/.pt, color="#505050", family="Source Sans Pro", hjust=-.1)+
+  si_style_xgrid()+
+  scale_fill_identity()+
+  scale_color_identity()+
   labs(x = NULL, y = NULL)+
-  theme(axis.text.x  = element_text(vjust=0.5, size=24, family = "Source Sans Pro"),
-        axis.text.y  = element_text(vjust=0.5, size=42, family = "Source Sans Pro" ),
-        strip.text = element_text(size = 38, hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank())+
-  scale_fill_identity()
+  theme(axis.text.x  = element_text(size=16, family = "Source Sans Pro"),
+        axis.text.y  = element_text(size=14, family = "Source Sans Pro", margin = margin(r = -.3, unit = "in")))
+  
 
 
- ggsave("rl3_prioritized_rumours.png",
-       height = 10,
-       width = 7)
- 
-priority_color<-c(genoa_light, trolley_grey_light)
-region_order<-c("Jur River", "Torit", "Lopa/Lafon", "Ikotos", "Gogrial West", "Wulu", "Wau", "Other (<500 Rumours")
-region_order<-c("Other (<500 Rumours)", "Wau", "Wulu", "Gogrial West", "Ikotos", "Lopa/Lafon", "Torit", "Jur River")
- 
- df_rl3_rumours_county<-
-   tibble::tribble(
-                    ~region, ~value, ~prioritized,
-                "Jur River", 11598L,        "yes",
-                    "Torit",  4486L,        "yes",
-               "Lopa/Lafon",  1478L,         "no",
-                   "Ikotos",  1090L,         "no",
-             "Gogrial West",  1082L,         "no",
-                     "Wulu",   583L,         "no",
-                      "Wau",   521L,        "yes",
-     "Other (<500 Rumours)",  1130L,         "a"
-     )
-
- df_rl3_rumours_county %>% 
-   mutate(value = as.numeric(value)) %>%
-   mutate(category_color=case_when(
-     prioritized=="yes" ~moody_blue,
-     prioritized=="no" ~moody_blue_light,
-     TRUE ~ trolley_grey), 
-     region=fct_relevel(region, region_order)) %>% 
-   ggplot(aes(x=value, y=region, fill=category_color), leg)+
-   geom_col(aes(fill=category_color, width=.85), show.legend = FALSE)+
-   #geom_col(alpha=.9, show.legend = FALSE)+
-   geom_text(aes(label=comma(round(value), accuracy=1)), na.rm=TRUE, color=trolley_grey, hjust=-.05, size=9, family="Source Sans Pro SemiBold")+
-   scale_x_continuous(breaks=seq(0, 15000, 5000), limits=c(0, 15000), label=comma)+
-   si_style_xgrid()+
-   labs(x = NULL, y = NULL)+
-   theme(axis.text.x  = element_text(vjust=0.5, size=24, family = "Source Sans Pro"),
-         axis.text.y  = element_text(vjust=0.5, size=24, family = "Source Sans Pro" ),
-         strip.text = element_text(size = 38, hjust=.01, family = "Source Sans Pro"),
-         axis.line.x = element_blank(),
-         axis.ticks.x = element_blank())+
-   scale_fill_identity()
- 
- ggsave("rl3_county_rumours.png",
-        height = 6,
-        width = 10)
+si_save("Images/2022_arm/risk_level_3/rumours_suspects_rl3.png")
+ggsave("Images/2022_arm/risk_level_3/rumours_suspects_rl3.png", height = 5.625, width = 10)
  

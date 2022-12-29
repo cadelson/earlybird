@@ -1,36 +1,39 @@
-df_casesweep<-
-tibble::tribble(
-         ~month,        ~region,  ~value,
-          "Feb",         "Budi",   62705,
-          "Mar",           "dm",  528106,
-  "Jan/May/Sep", "Kapoeta East",   16963,
-          "Jul",         "none",       0,
-          "Apr",         "none",       0,
-          "Jun",         "none",       0,
-          "Aug",         "none",       0,
-          "Oct",         "none",       0
-  )
+# PURPOSE: Case sweep visuals for ARM
+# AUTHOR: Cody Adelson | Data Manager
+# LICENSE: MIT
+# DATE: November 24, 2022
 
+df_case_sweep <-
+  tibble::tribble(
+        ~county,     ~type, ~value,
+     "Pochalla",  "people",  8695L,
+     "Pochalla", "animals",   899L,
+        "Akobo",  "people",  9715L,
+        "Akobo", "animals",  1828L
+     )
 
-month_order_cs<- c("Jan/May/Sep", "Feb", "Mar", "Apr", "Jun", "Jul", "Aug", "Oct") 
+type_order<-c("people", "animals")
+type_order<-c("animals", "people")
+type_color_order <- c("#8980cb", "#c43d4d")
+type_color_order <- c("#c43d4d", "#8980cb")
 
-df_casesweep %>% 
-  mutate(value=as.numeric(value),
-         month=fct_relevel(month, month_order_cs)) %>% 
-  ggplot(aes(x=month, y=value))+
-  geom_col(aes(fill=golden_sand, width=.85), show.legend = FALSE)+
-  geom_text(aes(label=comma(round(value), accuracy=1)), na.rm=TRUE, color=trolley_grey, vjust=-.12, size=11, family="Source Sans Pro SemiBold")+
-  scale_y_continuous(labels=comma, breaks=seq(0, 550000, 100000), limits=c(0, 550000))+
+df_case_sweep %>% 
+  mutate(type = fct_relevel(type, type_order),
+         type_color = case_when(
+           type == "people" ~ old_rose,
+           type == "animals" ~ moody_blue),
+         type_color = fct_relevel(type_color, type_color_order)) %>% 
+  ggplot(aes(x=county, y=value, fill=type_color))+
+  geom_bar(stat = "identity", position = position_dodge())+
+  geom_text(aes(label = comma(value)), position=position_dodge2(width=.9, preserve="single"), size = 6, vjust = -.3, family = "Source Sans Pro", fontface = "italic") +
+  scale_y_continuous(labels=comma, breaks=seq(0, 10000, 2500), limits=c(0, 10000))+
   si_style_ygrid()+
   labs(x = NULL, y = NULL)+
-  theme(axis.text.x  = element_text(vjust=0.5, size=39, family = "Source Sans Pro"),
-        axis.text.y  = element_text(vjust=0.5, size=33, family = "Source Sans Pro" ),
-        strip.text = element_text(size = 38, hjust=.02, family = "Source Sans Pro"),
+  theme(axis.text.x  = element_text(size = 22, vjust = 0.5, family = "Source Sans Pro"),
+        axis.text.y  = element_text(size = 16, vjust = 0.5, family = "Source Sans Pro" ),
         axis.line.x = element_blank(),
         axis.ticks.x = element_blank())+
-  scale_color_identity()+
+  #scale_color_identity()+
   scale_fill_identity()
 
-ggsave("cs.png",
-       height = 10,
-       width = 19)
+si_save("Images/2022_arm/risk_level_3/case_sweeps") 

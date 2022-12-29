@@ -1,5 +1,11 @@
 #Scratch
 
+df_21_22 %>% 
+  filter(sheet=="animals",
+         indicator == "rumours_24") %>% 
+  View()
+
+
 df %>% 
   filter(indicator=="rumours_total",
          sheet %in% c("MSR_Surv", "RPIF", "Non_MSR_Surv"),

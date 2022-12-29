@@ -1,154 +1,50 @@
-#Notes: Updated February 2022 with Dewormr data for cumulative 2021
+# PURPOSE: Cash reward reached visuals for ARM/GR
+# AUTHOR: Cody Adelson | Data Manager
+# LICENSE: MIT
+# DATE: November 24, 2022
 
-rl1<-c("Uror", "Rumbek North", "Tonj East", "Awerial")
-rl2<-c("Nyirol", "Tonj North", "Tonj South", "Cueibet", "Rumbek Centre", "Mayendit",
-       "Panyijiar", "Yirol East", "Yirol West", "Terekeka")
-
-df_cr<-df %>% 
-  filter(indicator=="cr_reached",
-         month!="Cumulative") %>% 
-  mutate(rl=case_when(
-    county %in% rl1 ~ "Risk Level 1 (n=4)",
-    county %in% rl2 ~ "Risk Level 2 (n=8)",
-    TRUE ~ "Risk Level 3 (n=25)")) %>% 
-  group_by(rl, month) %>% 
+df_cr <-df_21_22 %>% 
+  filter(indicator %in% c("cr_reached", "cases_new"),
+         year == "2022") %>% 
+  group_by(indicator, month, risk_level) %>% 
   summarise(across(c(value), sum, na.rm=TRUE)) %>% 
+  ungroup() %>% 
+  pivot_wider(names_from = indicator, values_from = value) %>% 
   mutate(month=match(month, month.name),
          month=month.abb[month],
          month_short = substr(month,1,1),
-         value_lab=paste((round(value/1000)), "k", sep=""))
-  
-  
+         value_lab=paste((round(cr_reached/1000)), "k", sep=""))
 
-# df_cr<-
-# tibble::tribble(
-#   ~rl, ~month,      ~value,
-#    1L,  "Jan", 3713.193548,
-#    1L,  "Feb", 4265.785714,
-#    1L,  "Mar", 2935.096774,
-#    1L,  "Apr", 3646.733333,
-#    1L,  "May",        3494,
-#    1L,  "Jun", 3946.866667,
-#    1L,  "Jul", 3035.483871,
-#    1L,  "Aug", 2987.129032,
-#    1L,  "Sep", 2695.833333,
-#    1L,  "Oct", 3154.709677,
-#    2L,  "Jan", 2702.709677,
-#    2L,  "Feb", 2749.642857,
-#    2L,  "Mar",        2765,
-#    2L,  "Apr", 2736.033333,
-#    2L,  "May", 1989.806452,
-#    2L,  "Jun",      2179.4,
-#    2L,  "Jul", 2595.677419,
-#    2L,  "Aug", 2032.903226,
-#    2L,  "Sep", 1995.333333,
-#    2L,  "Oct", 1854.483871,
-#    3L,  "Jan", 4408.193548,
-#    3L,  "Feb", 4711.928571,
-#    3L,  "Mar", 3936.387097,
-#    3L,  "Apr", 4091.633333,
-#    3L,  "May", 4528.387097,
-#    3L,  "Jun", 4279.566667,
-#    3L,  "Jul", 4888.774194,
-#    3L,  "Aug", 4503.387097,
-#    3L,  "Sep",      5014.8,
-#    3L,  "Oct", 4576.322581
-#   )
-
-
-
-
-month_order<- c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December") 
-month_order_ab<- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-rl_order<- c(3, 2, 1)
+month_order<- c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October") 
+month_order_ab<- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct")
+rl_order<- c("risk level 3", "risk level 2", "risk_level 1")
 rl_color_order<- c(genoa, golden_sand, old_rose)
 
-# df_cr %>% 
-#   mutate(rl = as.character(rl)) %>% 
-#   mutate(rl_color=case_when(
-#     rl=="1" ~old_rose,
-#     rl=="2" ~golden_sand,
-#     rl=="3" ~ genoa)) %>%
-#   mutate(month=fct_relevel(month, month_order),
-#          rl_color=fct_relevel(rl_color, rl_color_order))%>%
-#   ggplot(aes(x=month, y=value, fill=rl_color))+
-#   # geom_col(position=position_dodge2(width=1, preserve="single"), alpha=.9)+
-#   geom_col(width=.7, position=position_dodge(.7), alpha=.8)+
-#   # geom_text_repel(aes(label=comma(round(Cases), accuracy=1)), na.rm=TRUE, segment.color = 'transparent', color="grey30", nudge_y=8000, nudge_x=.1, family="Source Sans Pro SemiBold",
-#   #            data = . %>%
-#   #              filter(row_number() %% 5 == 3))+
-#   #geom_text(aes(label=comma(round(value), accuracy=1)), position=position_dodge2(width=.7, preserve="single"), na.rm=TRUE, color="black", vjust=-.5, size=7, family="Source Sans Pro SemiBold")+
-#   geom_text(aes(label=comma(round(value), accuracy=1)), position=position_dodge2(width=1, preserve="single"), na.rm=TRUE, color=trolley_grey, vjust=-.5, size=7, family="Source Sans Pro SemiBold")+
-#   scale_y_continuous(breaks=seq(0, 10000, 1500))+
-#   si_style_ygrid()+
-#   labs(x = NULL, y = NULL)+
-#   theme(axis.text.x  = element_text(vjust=0.5, size=32, family = "Source Sans Pro"),
-#         axis.text.y  = element_text(vjust=0.5, size=26, family = "Source Sans Pro" ),
-#         strip.text = element_text(size = 38, hjust=.02, family = "Source Sans Pro"),
-#         axis.line.x = element_blank(),
-#         axis.ticks.x = element_blank())+
-#   scale_fill_identity()
-# 
-# ggsave("cr_by_month.png",
-#        height = 14,
-#        width = 24)
-
-early_year <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug")
-late_year<- c("Sep", "Oct", "Nov", "Dec")
-
-#Updated with Dewormr - Feb 2022
-# df_cr %>% 
-#   mutate(rl = as.character(rl)) %>% 
-#   mutate(rl_color=case_when(
-#     rl=="1" & month %in% c(early_year) ~old_rose_light,
-#     rl=="1" & month %in% c(late_year) ~old_rose,
-#     rl=="2" ~golden_sand,
-#     rl=="3" & month %in% c(early_year) ~ genoa_light,
-#     rl=="3" & month %in% c(late_year) ~ genoa,
-#     TRUE~NA)) %>%
-#   mutate(month=fct_relevel(month, month_order_ab),
-#          rl_color=fct_relevel(rl_color, rl_color_order))%>%
-#   ggplot(aes(x=month, y=value, fill=rl_color))+
-#   geom_col(width=.7, position=position_dodge(.7), alpha=.8)+
-#   facet_wrap(~rl)+
-#   geom_text(aes(label=value_lab), position=position_dodge2(width=.7, preserve="single"), na.rm=TRUE, color="black", vjust=-.5, size=5, family="Source Sans Pro SemiBold")+
-#   #geom_text(aes(label=comma(round(value), accuracy=1)), position=position_dodge2(width=.7, preserve="single"), na.rm=TRUE, color="black", vjust=-.5, size=7, family="Source Sans Pro SemiBold")+
-#   scale_y_continuous(breaks=seq(0, 200000, 50000), limits=c(0, 175000), labels=label_number(suffix="k", scale = 1e-3))+
-#   si_style_ygrid()+
-#   labs(x = NULL, y = NULL)+
-#   theme(axis.text.x  = element_text(vjust=3, size=32, family = "Source Sans Pro"),
-#         axis.text.y  = element_text(vjust=0.5, size=26, family = "Source Sans Pro" ),
-#         strip.text = element_text(size = 38, hjust=.02, family = "Source Sans Pro"),
-#         axis.line.x = element_blank(),
-#         axis.ticks.x = element_blank())+
-#   #theme(axis.text.y = element_text(margin = margin(r = 0)))
-#   scale_fill_identity()
+early_year <- c("Jan", "Feb", "Mar", "Apr", "May")
+late_year<- c("Jun", "Jul", "Aug", "Sep", "Oct")
 
 df_cr %>% 
-  mutate(rl = as.character(rl)) %>% 
+  mutate(risk_level = as.character(risk_level)) %>% 
   mutate(rl_color=case_when(
-    rl=="Risk Level 1 (n=4)" & month %in% c(early_year) ~old_rose_light,
-    rl=="Risk Level 1 (n=4)" & month %in% c(late_year) ~old_rose,
-    rl=="Risk Level 2 (n=8)" ~golden_sand_light,
-    rl=="Risk Level 3 (n=25)" & month %in% c(early_year) ~ genoa_light,
-    rl=="Risk Level 3 (n=25)" & month %in% c(late_year) ~ genoa)) %>%
+    risk_level=="Risk Level 1" & month %in% c(early_year) ~old_rose_light,
+    risk_level=="Risk Level 1" & month %in% c(late_year) ~old_rose,
+    risk_level=="Risk Level 2" ~golden_sand_light,
+    risk_level=="Risk Level 3" & month %in% c(early_year) ~ genoa_light,
+    risk_level=="Risk Level 3" & month %in% c(late_year) ~ genoa)) %>%
   mutate(month=fct_relevel(month, month_order_ab),
          rl_color=fct_relevel(rl_color, rl_color_order),
-         cases=case_when(month %in% c("Aug", "Oct") ~1,
-                         month=="Jul" ~ 2,
-                         TRUE ~ 0),
-         cases_color=case_when(is.na(cases) | cases==0 ~ "#D9CDC3",
-                               cases==1 ~ "#FDAC7A",
-                               cases==2 ~ "#DA3C6A",
+         cases_color=case_when(is.na(cases_new) | cases_new == 0 ~ "#D9CDC3",
+                               cases_new == 1 ~ "#FDAC7A",
+                               cases_new == 2 ~ "#DA3C6A",
                                TRUE ~ "#A90773"),
          cases_color=factor(cases_color, c("#D9CDC3", "#FDAC7A", "#DA3C6A")))%>%
-  ggplot(aes(x=month, y=value, fill=rl_color))+
+  ggplot(aes(x=month, y = cr_reached, fill = rl_color))+
   geom_col(width=.7, position=position_dodge(.7))+
   #geom_col(width=.7, position=position_dodge(.7), alpha=.8)+
-  facet_wrap(~rl)+
-  geom_text(aes(label=value_lab), position=position_dodge2(width=.7, preserve="single"), na.rm=TRUE, color="black", vjust=-.5, size=2.5, family="Source Sans Pro SemiBold")+
+  facet_wrap(~risk_level)+
+  geom_text(aes(label=value_lab), position=position_dodge2(width=.7, preserve="single"), na.rm=TRUE, color="black", vjust=-.5, size=2.75, family="Source Sans Pro SemiBold")+
   #geom_text(aes(label=comma(round(value), accuracy=1)), position=position_dodge2(width=.7, preserve="single"), na.rm=TRUE, color="black", vjust=-.5, size=7, family="Source Sans Pro SemiBold")+
-  scale_y_continuous(breaks=seq(0, 175000, 50000), limits=c(0, 175000), labels=label_number(suffix="k", scale = 1e-3))+
+  scale_y_continuous(breaks=seq(0, 350000, 50000), limits=c(0, 350000), labels=label_number(suffix="k", scale = 1e-3))+
   scale_x_discrete(labels = c("J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"))+
   geom_rug(aes(color = factor(cases_color)), size=2, sides="b", na.rm = TRUE) +
   si_style_ygrid()+
@@ -162,129 +58,327 @@ df_cr %>%
   scale_fill_identity()+
   scale_color_identity()
 
-si_save("Images/2022_gr/cr_month")  
+si_save("Images/2022_arm/cr_month")  
 
 ggsave("cr_by_month_fy21.png",
        height = 9,
        width = 17)
 
 df_cr_waf<-df_cr %>% 
-  group_by(rl) %>% 
-  summarise(across(c(value), sum, na.rm=TRUE)) %>% 
-  group_by(rl) %>% #do calculations by siteID
+  group_by(risk_level) %>% 
+  summarise(across(c(cr_reached), sum, na.rm=TRUE)) %>% 
+  group_by(risk_level) %>% #do calculations by siteID
   ungroup() %>% 
-  mutate(value = round(value / sum(value) * 100)) %>% 
-  pivot_wider(names_from=rl, values_from=value)
+  mutate(cr_reached = round(cr_reached / sum(cr_reached) * 100)) %>% 
+  pivot_wider(names_from= risk_level, values_from = cr_reached)
 
 waffle(df_cr_waf, rows=10, size=1.25, flip=TRUE, reverse=TRUE,
        colors= c("#D06471", "#F5C966", "#53968C"), legend_pos = "none")
 
-ggsave("cr_gr_waffle.png",
+ggsave("Images/2022_arm/cr_gr_waffle.png",
        height = 7,
        width = 7)
 
-df_cr_region<-
-tibble::tribble(
-         ~region, ~month, ~value,
-  "Rumbek North",  "Jan", 41321L,
-  "Rumbek North",  "Feb", 27405L,
-  "Rumbek North",  "Mar", 28068L,
-  "Rumbek North",  "Apr", 24486L,
-  "Rumbek North",  "May", 35137L,
-  "Rumbek North",  "Jun", 40340L,
-  "Rumbek North",  "Jul", 29610L,
-  "Rumbek North",  "Aug", 29460L,
-  "Rumbek North",  "Sep", 23094L,
-  "Rumbek North",  "Oct", 23628L,
-     "Tonj East",  "Jan", 52708L,
-     "Tonj East",  "Feb", 57927L,
-     "Tonj East",  "Mar", 46931L,
-     "Tonj East",  "Apr", 74093L,
-     "Tonj East",  "May", 52165L,
-     "Tonj East",  "Jun", 62055L,
-     "Tonj East",  "Jul", 53880L,
-     "Tonj East",  "Aug", 48473L,
-     "Tonj East",  "Sep", 45840L,
-     "Tonj East",  "Oct", 42927L,
-          "Uror",  "Jan", 18014L,
-          "Uror",  "Feb", 34110L,
-          "Uror",  "Mar", 15989L,
-          "Uror",  "Apr", 10823L,
-          "Uror",  "May", 20416L,
-          "Uror",  "Jun", 16011L,
-          "Uror",  "Jul", 10610L,
-          "Uror",  "Aug", 14668L,
-          "Uror",  "Sep", 11941L,
-          "Uror",  "Oct", 31241L
-  )
-
-
-
-df_cr_region %>% 
-  filter(region=="Tonj East") %>% 
+#Tonj East
+df_21_22 %>% 
+  filter(indicator == "cr_reached",
+         county == "Tonj East",
+         year == "2022") %>% 
+  group_by(month) %>% 
+  summarise(across(c(value), sum, na.rm = TRUE)) %>% 
   mutate(value=as.numeric(value),
          month=fct_relevel(month, month_order)) %>% 
   ggplot(aes(x=month, y=value))+
   geom_col(aes(fill=old_rose, width=.85), show.legend = FALSE)+
-  geom_text(aes(label=comma(round(value), accuracy=1)), na.rm=TRUE, color=trolley_grey, vjust=-.12, size=14, family="Source Sans Pro SemiBold")+
-  scale_y_continuous(label=comma, breaks=seq(0, 60000, 20000))+
+  geom_text(aes(label=comma(round(value), accuracy=1)), size = 5, na.rm=TRUE, color=trolley_grey, vjust=-.12, family="Source Sans Pro SemiBold")+
+  scale_y_continuous(label=comma, breaks=seq(0, 125000, 25000))+
   si_style_ygrid()+
   labs(x = NULL, y = NULL)+
-  theme(axis.text.x  = element_text(vjust=0.5, size=36, family = "Source Sans Pro"),
-        axis.text.y  = element_text(vjust=0.5, size=30, family = "Source Sans Pro" ),
-        strip.text = element_text(size = 38, hjust=.02, family = "Source Sans Pro"),
+  theme(axis.text.x  = element_text(size = 14, vjust=0.5, family = "Source Sans Pro"),
+        axis.text.y  = element_text(size = 14, vjust=0.5, family = "Source Sans Pro" ),
         axis.line.x = element_blank(),
         axis.ticks.x = element_blank())+
   scale_color_identity()+
   scale_fill_identity()
 
-ggsave("cr_TE.png",
-       height = 12,
-       width = 20)
+si_save("Images/2022_arm/county_presentations/cr_te.png")
 
-df_cr_region %>% 
-  filter(region=="Uror")%>% 
+#Uror
+
+df_21_22 %>% 
+  filter(indicator == "cr_reached",
+         county == "Uror",
+         year == "2022") %>% 
+  group_by(month) %>% 
+  summarise(across(c(value), sum, na.rm = TRUE)) %>% 
   mutate(value=as.numeric(value),
          month=fct_relevel(month, month_order)) %>% 
   ggplot(aes(x=month, y=value))+
   geom_col(aes(fill=old_rose, width=.85), show.legend = FALSE)+
-  geom_text(aes(label=comma(round(value), accuracy=1)), na.rm=TRUE, color=trolley_grey, vjust=-.12, size=14, family="Source Sans Pro SemiBold")+
+  geom_text(aes(label=comma(round(value), accuracy=1)), size = 5, na.rm=TRUE, color=trolley_grey, vjust=-.12, family="Source Sans Pro SemiBold")+
+  scale_y_continuous(label=comma, breaks=seq(0, 200000, 20000))+
+  si_style_ygrid()+
+  labs(x = NULL, y = NULL)+
+  theme(axis.text.x  = element_text(size = 14, vjust=4, family = "Source Sans Pro"),
+        axis.text.y  = element_text(size = 14, vjust=0.5, family = "Source Sans Pro" ),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())+
+  scale_color_identity()+
+  scale_fill_identity()
+
+si_save("Images/2022_arm/county_presentations/cr_ur.png")
+
+# Nyirol and Akobo
+
+df_21_22 %>% 
+  filter(indicator == "cr_reached",
+         county %in% c("Nyirol", "Akobo"),
+         year == "2022") %>%
+  group_by(month, county) %>% 
+  summarise(across(c(value), sum, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  mutate(value=as.numeric(value),
+         month=fct_relevel(month, month_order)) %>% 
+  ggplot(aes(x=month, y=value))+
+  geom_col(aes(fill=old_rose, width=.85), show.legend = FALSE)+
+  facet_wrap(~county, ncol = 1)+
+  geom_text(aes(label=comma(round(value), accuracy=1)), size = 5, na.rm=TRUE, color=trolley_grey, vjust=-.12, family="Source Sans Pro SemiBold")+
+  scale_y_continuous(label=comma, breaks=seq(0, 40000, 10000))+
+  si_style_ygrid()+
+  labs(x = NULL, y = NULL)+
+  theme(axis.text.x  = element_text(size = 14, vjust=4, family = "Source Sans Pro"),
+        axis.text.y  = element_text(size = 14, vjust=0.5, family = "Source Sans Pro" ),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        strip.text = element_text(size = 20, hjust=.02, family = "Source Sans Pro"))+
+  scale_color_identity()+
+  scale_fill_identity()
+
+si_save("Images/2022_arm/county_presentations/cr_ny_ak.png")
+
+# Akobo
+
+df_21_22 %>% 
+  filter(indicator == "cr_reached",
+         county == "Akobo",
+         year == "2022") %>%
+  group_by(month) %>% 
+  summarise(across(c(value), sum, na.rm = TRUE)) %>% 
+  mutate(value=as.numeric(value),
+         month=fct_relevel(month, month_order)) %>% 
+  ggplot(aes(x=month, y=value))+
+  geom_col(aes(fill=old_rose, width=.85), show.legend = FALSE)+
+  geom_text(aes(label=comma(round(value), accuracy=1)), size = 5, na.rm=TRUE, color=trolley_grey, vjust=-.12, family="Source Sans Pro SemiBold")+
+  scale_y_continuous(label=comma, breaks=seq(0, 10000, 2000))+
+  si_style_ygrid()+
+  labs(x = NULL, y = NULL)+
+  theme(axis.text.x  = element_text(size = 14, vjust=4, family = "Source Sans Pro"),
+        axis.text.y  = element_text(size = 14, vjust=0.5, family = "Source Sans Pro" ),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())+
+  scale_color_identity()+
+  scale_fill_identity()
+
+si_save("Images/2022_arm/county_presentations/cr_ak.png")
+
+
+#Rumbek North
+
+df_21_22 %>% 
+  filter(indicator == "cr_reached",
+         county == "Rumbek North",
+         year == "2022") %>% 
+  group_by(month) %>% 
+  summarise(across(c(value), sum, na.rm = TRUE)) %>%
+  mutate(value=as.numeric(value),
+         month=fct_relevel(month, month_order)) %>% 
+  ggplot(aes(x=month, y=value))+
+  geom_col(aes(fill=old_rose, width=.85), show.legend = FALSE)+
+  geom_text(aes(label=comma(round(value), accuracy=1)), size = 5, na.rm=TRUE, color=trolley_grey, vjust=-.12, family="Source Sans Pro SemiBold")+
+  scale_y_continuous(label=comma, breaks=seq(0, 200000, 10000))+
+  si_style_ygrid()+
+  labs(x = NULL, y = NULL)+
+  theme(axis.text.x  = element_text(size = 12, vjust = 4, family = "Source Sans Pro"),
+        axis.text.y  = element_text(size = 14, vjust = 0.5, family = "Source Sans Pro" ),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())+
+  scale_color_identity()+
+  scale_fill_identity()
+
+si_save("Images/2022_arm/county_presentations/cr_rn.png")
+
+
+#Awerial
+df_21_22 %>% 
+  filter(indicator == "cr_reached",
+         county == "Awerial",
+         year == "2022") %>% 
+  group_by(month) %>% 
+  summarise(across(c(value), sum, na.rm = TRUE)) %>%
+  mutate(value=as.numeric(value),
+         month=fct_relevel(month, month_order)) %>% 
+  ggplot(aes(x=month, y=value))+
+  geom_col(aes(fill=old_rose, width=.85), show.legend = FALSE)+
+  geom_text(aes(label=comma(round(value), accuracy=1)), size = 5, na.rm=TRUE, color=trolley_grey, vjust=-.12, family="Source Sans Pro SemiBold")+
+  scale_y_continuous(label=comma, breaks=seq(0, 200000, 20000))+
+  si_style_ygrid()+
+  labs(x = NULL, y = NULL)+
+  theme(axis.text.x  = element_text(size = 12, vjust=4, family = "Source Sans Pro"),
+        axis.text.y  = element_text(size = 14, vjust=0.5, family = "Source Sans Pro" ),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())+
+  scale_color_identity()+
+  scale_fill_identity()
+
+si_save("Images/2022_arm/county_presentations/cr_aw.png")
+
+# Tonj North
+df_21_22 %>% 
+  filter(indicator == "cr_reached",
+         county == "Tonj North",
+         year == "2022") %>% 
+  group_by(month) %>% 
+  summarise(across(c(value), sum, na.rm = TRUE)) %>%
+  mutate(value=as.numeric(value),
+         month=fct_relevel(month, month_order)) %>% 
+  ggplot(aes(x=month, y=value))+
+  geom_col(aes(fill=old_rose, width=.85), show.legend = FALSE)+
+  geom_text(aes(label=comma(round(value), accuracy=1)), size = 5, na.rm=TRUE, color=trolley_grey, vjust=-.12, family="Source Sans Pro SemiBold")+
+  scale_y_continuous(label=comma, breaks=seq(0, 15000, 5000))+
+  si_style_ygrid()+
+  labs(x = NULL, y = NULL)+
+  theme(axis.text.x  = element_text(size = 12, vjust=4, family = "Source Sans Pro"),
+        axis.text.y  = element_text(size = 14, vjust=0.5, family = "Source Sans Pro" ),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())+
+  scale_color_identity()+
+  scale_fill_identity()
+
+si_save("Images/2022_arm/county_presentations/cr_tn.png")
+
+# Rumbek Centre
+df_21_22 %>% 
+  filter(indicator == "cr_reached",
+         county == "Rumbek Centre",
+         year == "2022") %>% 
+  group_by(month) %>% 
+  summarise(across(c(value), sum, na.rm = TRUE)) %>%
+  mutate(value=as.numeric(value),
+         month=fct_relevel(month, month_order)) %>% 
+  ggplot(aes(x=month, y=value))+
+  geom_col(aes(fill=old_rose, width=.85), show.legend = FALSE)+
+  geom_text(aes(label=comma(round(value), accuracy=1)), size = 5, na.rm=TRUE, color=trolley_grey, vjust=-.12, family="Source Sans Pro SemiBold")+
   scale_y_continuous(label=comma, breaks=seq(0, 30000, 5000))+
   si_style_ygrid()+
   labs(x = NULL, y = NULL)+
-  theme(axis.text.x  = element_text(vjust=0.5, size=36, family = "Source Sans Pro"),
-        axis.text.y  = element_text(vjust=0.5, size=30, family = "Source Sans Pro" ),
-        strip.text = element_text(size = 38, hjust=.02, family = "Source Sans Pro"),
+  theme(axis.text.x  = element_text(size = 12, vjust=4, family = "Source Sans Pro"),
+        axis.text.y  = element_text(size = 14, vjust=0.5, family = "Source Sans Pro" ),
         axis.line.x = element_blank(),
         axis.ticks.x = element_blank())+
   scale_color_identity()+
   scale_fill_identity()
 
-ggsave("cr_UR.png",
-       height = 12,
-       width = 20)
+si_save("Images/2022_arm/county_presentations/cr_rc.png")
 
-df_cr_region %>% 
-  filter(region=="Rumbek North")%>% 
+
+# Terekeka
+df_21_22 %>% 
+  filter(indicator == "cr_reached",
+         county == "Terekeka",
+         year == "2022") %>% 
+  group_by(month) %>% 
+  summarise(across(c(value), sum, na.rm = TRUE)) %>%
   mutate(value=as.numeric(value),
          month=fct_relevel(month, month_order)) %>% 
   ggplot(aes(x=month, y=value))+
   geom_col(aes(fill=old_rose, width=.85), show.legend = FALSE)+
-  geom_text(aes(label=comma(round(value), accuracy=1)), na.rm=TRUE, color=trolley_grey, vjust=-.12, size=14, family="Source Sans Pro SemiBold")+
-  scale_y_continuous(label=comma, breaks=seq(0, 50000, 10000))+
+  geom_text(aes(label=comma(round(value), accuracy=1)), size = 5, na.rm=TRUE, color=trolley_grey, vjust=-.12, family="Source Sans Pro SemiBold")+
+  scale_y_continuous(label=comma, breaks=seq(0, 8000, 2000))+
   si_style_ygrid()+
   labs(x = NULL, y = NULL)+
-  theme(axis.text.x  = element_text(vjust=0.5, size=36, family = "Source Sans Pro"),
-        axis.text.y  = element_text(vjust=0.5, size=30, family = "Source Sans Pro" ),
-        strip.text = element_text(size = 38, hjust=.02, family = "Source Sans Pro"),
+  theme(axis.text.x  = element_text(size = 12, vjust=4, family = "Source Sans Pro"),
+        axis.text.y  = element_text(size = 14, vjust=0.5, family = "Source Sans Pro" ),
         axis.line.x = element_blank(),
         axis.ticks.x = element_blank())+
   scale_color_identity()+
   scale_fill_identity()
 
-ggsave("cr_RN.png",
-       height = 12,
-       width = 20)
+si_save("Images/2022_arm/county_presentations/cr_ter.png")
+
+
+# Lafon
+df_21_22 %>% 
+  filter(indicator == "cr_reached",
+         county %in% c("Lafon", "Lopa/Lafon"),
+         year == "2022") %>% 
+  group_by(month) %>% 
+  summarise(across(c(value), sum, na.rm = TRUE)) %>%
+  mutate(value=as.numeric(value),
+         month=fct_relevel(month, month_order)) %>% 
+  ggplot(aes(x=month, y=value))+
+  geom_col(aes(fill=old_rose, width=.85), show.legend = FALSE)+
+  geom_text(aes(label=comma(round(value), accuracy=1)), size = 5, na.rm=TRUE, color=trolley_grey, vjust=-.12, family="Source Sans Pro SemiBold")+
+  scale_y_continuous(label=comma, breaks=seq(0, 8000, 2000))+
+  si_style_ygrid()+
+  labs(x = NULL, y = NULL)+
+  theme(axis.text.x  = element_text(size = 12, vjust=4, family = "Source Sans Pro"),
+        axis.text.y  = element_text(size = 14, vjust=0.5, family = "Source Sans Pro" ),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())+
+  scale_color_identity()+
+  scale_fill_identity()
+
+si_save("Images/2022_arm/county_presentations/cr_ll.png")
+
+#Risk Level 3
+df_21_22 %>% 
+  filter(indicator == "cr_reached",
+         risk_level == "Risk Level 3",
+         year == "2022") %>% 
+  group_by(month) %>% 
+  summarise(across(c(value), sum, na.rm = TRUE)) %>%
+  mutate(value=as.numeric(value),
+         month=fct_relevel(month, month_order)) %>% 
+  ggplot(aes(x=month, y=value))+
+  geom_col(aes(fill=old_rose, width=.85), show.legend = FALSE)+
+  geom_text(aes(label=comma(round(value), accuracy=1)), size = 5, na.rm=TRUE, color=trolley_grey, vjust=-.12, family="Source Sans Pro SemiBold")+
+  scale_y_continuous(label=comma, breaks=seq(0, 200000, 20000))+
+  si_style_ygrid()+
+  labs(x = NULL, y = NULL)+
+  theme(axis.text.x  = element_text(size = 14, vjust=4, family = "Source Sans Pro"),
+        axis.text.y  = element_text(size = 14, vjust=0.5, family = "Source Sans Pro" ),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())+
+  scale_color_identity()+
+  scale_fill_identity()
+
+si_save("Images/2022_arm/risk_level_3/cr_rl3.png")
+
+#Risk Level 2
+df_21_22 %>% 
+  filter(indicator == "cr_reached",
+         risk_level == "Risk Level 2",
+         year == "2022") %>% 
+  #group_by(month) %>% 
+  summarise(across(c(value), sum, na.rm = TRUE)) %>%
+  View()
+  ungroup() %>% 
+  mutate(value=as.numeric(value),
+         month=fct_relevel(month, month_order)) %>% 
+  ggplot(aes(x=month, y=value))+
+  geom_col(aes(fill=old_rose, width=.85), show.legend = FALSE)+
+  geom_text(aes(label=comma(round(value), accuracy=1)), size = 5, na.rm=TRUE, color=trolley_grey, vjust=-.12, family="Source Sans Pro SemiBold")+
+  scale_y_continuous(label=comma, breaks=seq(0, 200000, 20000))+
+  si_style_ygrid()+
+  labs(x = NULL, y = NULL)+
+  theme(axis.text.x  = element_text(size = 14, vjust=4, family = "Source Sans Pro"),
+        axis.text.y  = element_text(size = 14, vjust=0.5, family = "Source Sans Pro" ),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())+
+  scale_color_identity()+
+  scale_fill_identity()
+
+si_save("Images/2022_arm/risk_level_2/cr_rl2.png")
 
 
 df_cr_r2<-

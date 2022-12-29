@@ -8,20 +8,22 @@ tibble::tribble(
      2020L,     1L,            "3",
      2020L,     0L, "other levels",
      2021L,     2L,            "3",
-     2021L,     2L, "other levels"
+     2021L,     2L, "other levels",
+     2022L,     1L,            "3",
+     2022L,     4L, "other levels",
      )
 
 
 # month_order<- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct")
 rl_order<-c("Targeted", "Eligible and Treated")
-rl_color_order<-c(scooter_light, scooter)
+rl_color_order<-c(grey40k, scooter)
 
 
  df_rl3_cases%>% 
   mutate(value = as.numeric(value)) %>%
   mutate(rl_color=case_when(
            rl=="3" ~scooter,
-           rl=="other levels" ~scooter_light),
+           rl=="other levels" ~ grey40k),
          rl_color=fct_relevel(rl_color, rl_color_order)) %>% 
   #ggplot(aes(x=month, y=value, fill=scooter_med))+
   ggplot(aes(x=year, y=value, fill=rl_color), leg)+
@@ -49,6 +51,6 @@ rl_color_order<-c(scooter_light, scooter)
   scale_fill_identity()
 
 
-ggsave("cases_rl.png",
+ggsave("Images/2022_arm/risk_level_3/cases_rl.png",
        height = 5,
        width = 10)

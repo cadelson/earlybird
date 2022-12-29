@@ -5,7 +5,7 @@
 # DATE: Apr 11, 2022
 # NOTES: To delete
 
-df_cases_path <- "~/Github/pinchworm/Data/2007_2022_patient_data.xlsx"
+df_cases_path <- "~/Github/earlybird/Data/2007_2022_patient_data.xlsx"
 df_cases<- read.xlsx(df_cases_path)
 `%notin%` <- Negate(`%in%`)
 
