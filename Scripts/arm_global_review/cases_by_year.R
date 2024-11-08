@@ -4,6 +4,12 @@
 # DATE: Nov 25, 2021
 # NOTES: November 2022 - updated for 2022 ARM
 
+library(tidyverse)
+library(glitr)
+library(scales)
+library(lubridate)
+library(extrafont)
+
 df_year<-
   tibble::tribble(
     ~Year,  ~Cases,
@@ -36,17 +42,12 @@ df_year<-
     2019L,       4,
     2020L,       1,
     2021L,       4,
-    2022L,       6
+    2022L,       6,
+    2023L,       3,
+    2024L,       3
     )
-
-df_year %>% 
-  summarise(across(c(Cases), sum, na.rm = TRUE))
-
-
-# df_year %>% 
-#   ggplot(aes(x=Year, y=Cases))+
-#   geom_col(stat="sum", fill=scooter, alpha=.8, width=.85)+
   
+
 df_year %>% 
   ggplot(aes(x=Year, y=Cases))+
   geom_area(alpha=.5, fill=denim_light)+
@@ -67,14 +68,14 @@ df_year %>%
         axis.text.x = element_text(size = 15, family = "Source Sans Pro", margin = margin(t = -.18, unit = "in")),
         axis.ticks.x = element_blank())
 
-si_save("Images/2022_arm/gw_yearly_cases.png")
+si_save("Images/2024_arm/gw_yearly_cases_non_subcutaneous.png")
 
 df_year %>% 
   filter(Year>2014) %>% 
   ggplot(aes(x=Year, y=Cases))+
   geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2015, to=2021, by = 1), size=.5, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from=0, to=10, by = 5), size=.5, color="grey90")+
+  geom_vline(xintercept = seq(from=2015, to=2024, by = 1), size=.5, color="white", linetype="dotted")+
+  geom_hline(yintercept = seq(from=0, to=15, by = 5), size=.5, color="grey90")+
   geom_line(size=1, colour=denim)+
   geom_point(fill = "white",
              shape = 21,
@@ -82,14 +83,14 @@ df_year %>%
              colour = denim,
              stroke=2) +
   si_style_ygrid()+
-  scale_y_continuous(labels = number_format(accuracy=1), breaks=seq(from=0, to=10, by=5), limits=c(0, 10))+
-  scale_x_continuous(breaks=seq(2015, 2022, 1))+
-  labs(x = NULL, y = NULL, color = NULL, subtitle="2015-2022", family="Source Sans Pro")+
+  scale_y_continuous(labels = number_format(accuracy=1), breaks=seq(from=0, to=15, by=5), limits=c(0, 15))+
+  scale_x_continuous(breaks=seq(2015, 2024, 1))+
+  labs(x = NULL, y = NULL, color = NULL, subtitle="2015-2024", family="Source Sans Pro")+
   scale_size_area()+
   theme(axis.text = element_text(size = 24),
         plot.subtitle = element_text(size=28, hjust=.15, vjust=3))
 
-si_save("Images/2022_arm/cases_yearly_recent.png")
+si_save("Images/2024_arm/cases_yearly_recent_non_subcutaneous.png")
 
 #########################
 

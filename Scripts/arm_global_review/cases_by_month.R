@@ -4,19 +4,25 @@
 # DATE: Nov 23, 2021
 # NOTES: Oct 2022 - Updated for 2022 ARM. Needs to be updated to sync with patient level dataset
 
+library(tidyverse)
+library(glitr)
+library(reshape2)
+
 month_order<- c("Jan-Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec") 
 
 df<-
   tibble::tribble(
     ~Year, ~`Jan-Apr`, ~May, ~Jun, ~Jul, ~Aug, ~Sep, ~Oct, ~Nov, ~Dec,
-    2015L,           0L,   0L,   1L,   2L,   1L,   1L,   0L,   0L,   0L,
-    2016L,           0L,   0L,   4L,   0L,   0L,   1L,   0L,   1L,   0L,
-    2017L,           0L,   0L,   0L,   0L,   0L,   0L,   0L,   0L,   0L,
+    # 2015L,           0L,   0L,   1L,   2L,   1L,   1L,   0L,   0L,   0L,
+    # 2016L,           0L,   0L,   4L,   0L,   0L,   1L,   0L,   1L,   0L,
+    # 2017L,           0L,   0L,   0L,   0L,   0L,   0L,   0L,   0L,   0L,
     2018L,           0L,   2L,   2L,   3L,   2L,   1L,   0L,   0L,   0L,
     2019L,           0L,   0L,   0L,   1L,   1L,   2L,   0L,   0L,   0L,
     2020L,           0L,   0L,   0L,   1L,   0L,   0L,   0L,   0L,   0L,
     2021L,           0L,   0L,   0L,   2L,   1L,   0L,   1L,   0L,   0L,
-    2022L,           0L,   0L,   0L,   1L,   2L,   2L,   1L,   0L,   0L
+    2022L,           0L,   0L,   0L,   1L,   2L,   2L,   1L,   0L,   0L,
+    2023L,           0L,   0L,   0L,   0L,   1L,   1L,   0L,   1L,   0L,
+    2024L,           1L,   0L,   9L,   3L,   0L,   0L,   0L,   0L,   0L,
     )
 
 
@@ -35,6 +41,8 @@ df1<-df %>%
   mutate(case_type=case_when(
     Year=="2015 (n=5)" & month=="Sep" ~ "dog",
     Year=="2022 (n=6)" & month=="Aug" ~ "dog",
+    Year=="2023 (n=3)" & month=="Nov" ~ "dog",
+    Year == "2024 (n=13)" ~ "dog",
     TRUE ~ "human"),
     case_color=case_when(
       case_type=="human" ~old_rose,
@@ -46,32 +54,35 @@ df1 %>%
   filter(Year!="2017 (n=0)") %>% 
   ggplot(aes(x=month, y=value))+
   geom_col(aes(fill=case_color, width=.75), show.legend = FALSE)+
-  facet_wrap(~Year, ncol=1)+
+  #facet_wrap(~Year, ncol=1)+
+  facet_grid(Year ~ ., switch = "y", scales="free_y")+
   scale_y_continuous(breaks=seq(0, 4, 2))+
   si_style_ygrid()+
   labs(x = NULL, y = NULL,
-       caption= paste("both animal infections detected from dogs"))+
+       #caption= paste("animal infections detected from dogs")
+       )+
   theme(axis.text.x  = element_text(vjust = 0.5, size = 34, family = "Source Sans Pro"),
         axis.text.y  = element_text(vjust = 0.5, size = 21, family = "Source Sans Pro" ),
-        plot.caption = element_text(vjust = -2, size = 18, family = "Source Sans Pro" ),
+        #plot.caption = element_text(vjust = -2, size = 18, family = "Source Sans Pro" ),
         strip.text = element_text(size = 40, family = "Source Sans Pro"),
         axis.line.x = element_blank(),
-        axis.ticks.x = element_blank())+
-  geom_hline(aes(yintercept=1), colour="white", size= 1)+
-  geom_hline(aes(yintercept=2), colour="white", size= 1)+
-  geom_hline(aes(yintercept=3), colour="white", size= 1)+
-  geom_hline(aes(yintercept=4), colour="white", size= 1)+
-  geom_rect(data = data.frame(Year = "2015 (n=5)"), aes(xmin = 2.5, xmax = 6.5, ymin = -Inf, ymax = Inf), alpha = 0.2, fill=old_rose_light, inherit.aes = FALSE)+
-  geom_rect(data = data.frame(Year = "2016 (n=6)"), aes(xmin = 2.5, xmax = 8.5, ymin = -Inf, ymax = Inf), alpha = 0.2, fill=old_rose_light, inherit.aes = FALSE)+
+        axis.ticks.x = element_blank(),
+        strip.text.y.left = element_text(angle = 0),
+        strip.placement = "outside")+
+  geom_hline(yintercept = c(1, 2, 3, 4, 5, 6, 7, 8), size = 1, colour="white")+
+  # geom_rect(data = data.frame(Year = "2015 (n=5)"), aes(xmin = 2.5, xmax = 6.5, ymin = -Inf, ymax = Inf), alpha = 0.2, fill=old_rose_light, inherit.aes = FALSE)+
+  # geom_rect(data = data.frame(Year = "2016 (n=6)"), aes(xmin = 2.5, xmax = 8.5, ymin = -Inf, ymax = Inf), alpha = 0.2, fill=old_rose_light, inherit.aes = FALSE)+
   geom_rect(data = data.frame(Year = "2018 (n=10)"), aes(xmin = 1.5, xmax = 6.5, ymin = -Inf, ymax = Inf), alpha = 0.2, fill=old_rose_light, inherit.aes = FALSE)+
   geom_rect(data = data.frame(Year = "2019 (n=4)"), aes(xmin = 3.5, xmax = 6.5, ymin = -Inf, ymax = Inf), alpha = 0.2, fill=old_rose_light, inherit.aes = FALSE)+
   geom_rect(data = data.frame(Year = "2020 (n=1)"), aes(xmin = 3.5, xmax = 4.5, ymin = -Inf, ymax = Inf), alpha = 0.2, fill=old_rose_light, inherit.aes = FALSE)+
   geom_rect(data = data.frame(Year = "2021 (n=4)"), aes(xmin = 3.5, xmax = 7.5, ymin = -Inf, ymax = Inf), alpha = 0.2, fill=old_rose_light, inherit.aes = FALSE)+
   geom_rect(data = data.frame(Year = "2022 (n=6)"), aes(xmin = 3.5, xmax = 7.5, ymin = -Inf, ymax = Inf), alpha = 0.2, fill=old_rose_light, inherit.aes = FALSE)+
+  geom_rect(data = data.frame(Year = "2023 (n=3)"), aes(xmin = 4.5, xmax = 8.5, ymin = -Inf, ymax = Inf), alpha = 0.2, fill=old_rose_light, inherit.aes = FALSE)+
+  geom_rect(data = data.frame(Year = "2024 (n=13)"), aes(xmin = 0.5, xmax = 4.5, ymin = -Inf, ymax = Inf), alpha = 0.2, fill=old_rose_light, inherit.aes = FALSE)+
   scale_color_identity()+
   scale_fill_identity()
 
-ggsave("Images/2022_arm/gw_monthly_cases.png",
+ggsave("Images/2024_arm/gw_monthly_cases.png",
        height = 14,
        width = 24)
 

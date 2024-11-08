@@ -3,9 +3,14 @@
 # LICENSE: MIT
 # DATE: November 24, 2022
 
-df_cr <-df_21_22 %>% 
+library(tidyverse)
+library(writexl)
+library(glitr)
+library(scales)
+
+df_cr <-df_21_23 %>% 
   filter(indicator %in% c("cr_reached", "cases_new"),
-         year == "2022") %>% 
+         year == "2023") %>% 
   group_by(indicator, month, risk_level) %>% 
   summarise(across(c(value), sum, na.rm=TRUE)) %>% 
   ungroup() %>% 
@@ -15,13 +20,13 @@ df_cr <-df_21_22 %>%
          month_short = substr(month,1,1),
          value_lab=paste((round(cr_reached/1000)), "k", sep=""))
 
-month_order<- c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October") 
-month_order_ab<- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct")
+month_order<- c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December") 
+month_order_ab<- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 rl_order<- c("risk level 3", "risk level 2", "risk_level 1")
-rl_color_order<- c(genoa, golden_sand, old_rose)
+rl_color_order<- c(genoa, golden_sand_light, old_rose)
 
 early_year <- c("Jan", "Feb", "Mar", "Apr", "May")
-late_year<- c("Jun", "Jul", "Aug", "Sep", "Oct")
+late_year<- c("Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
 df_cr %>% 
   mutate(risk_level = as.character(risk_level)) %>% 
@@ -37,7 +42,7 @@ df_cr %>%
                                cases_new == 1 ~ "#FDAC7A",
                                cases_new == 2 ~ "#DA3C6A",
                                TRUE ~ "#A90773"),
-         cases_color=factor(cases_color, c("#D9CDC3", "#FDAC7A", "#DA3C6A")))%>%
+         cases_color=factor(cases_color, c("#D9CDC3", "#FDAC7A", "#DA3C6A"))) %>%
   ggplot(aes(x=month, y = cr_reached, fill = rl_color))+
   geom_col(width=.7, position=position_dodge(.7))+
   #geom_col(width=.7, position=position_dodge(.7), alpha=.8)+
@@ -58,7 +63,7 @@ df_cr %>%
   scale_fill_identity()+
   scale_color_identity()
 
-si_save("Images/2022_arm/cr_month")  
+si_save("Images/2024_gr/cr_month")  
 
 ggsave("cr_by_month_fy21.png",
        height = 9,
@@ -67,6 +72,7 @@ ggsave("cr_by_month_fy21.png",
 df_cr_waf<-df_cr %>% 
   group_by(risk_level) %>% 
   summarise(across(c(cr_reached), sum, na.rm=TRUE)) %>% 
+  View()
   group_by(risk_level) %>% #do calculations by siteID
   ungroup() %>% 
   mutate(cr_reached = round(cr_reached / sum(cr_reached) * 100)) %>% 
@@ -75,7 +81,7 @@ df_cr_waf<-df_cr %>%
 waffle(df_cr_waf, rows=10, size=1.25, flip=TRUE, reverse=TRUE,
        colors= c("#D06471", "#F5C966", "#53968C"), legend_pos = "none")
 
-ggsave("Images/2022_arm/cr_gr_waffle.png",
+ggsave("Images/2024_gr/cr_gr_waffle.png",
        height = 7,
        width = 7)
 

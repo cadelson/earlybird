@@ -5,15 +5,19 @@
 # NOTES: February 2022 update with dewormr dataset for Global Review
 # Updated November 22 2022 for ARM
 
+library(tidyverse)
+library(scales)
+library(glitr)
+
 data_out <- "~/Github/earlybird/Dataout"
-month_order<- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct")
+month_order<- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 status_order<-c("Targeted", "Eligible", "Treated")
 status_color_order<-c("#03045e", "#0077b6", "#00b4d8")
-current_year <- "2022"
+current_year <- "2023"
 
 # Water sources abated, eligible and treated
 
-df_abate<-df_21_22 %>% 
+df_abate<-df_21_23 %>% 
   filter(indicator %in% c("abate_targeted", "abate_eligible", "abate_treated"),
          year == current_year) %>% 
   mutate(indicator=case_when(
@@ -34,29 +38,32 @@ df_abate<-df_21_22 %>%
          status_color=fct_relevel(status_color, status_color_order))
 
 df_abate %>% 
+  filter(indicator != "Targeted") %>% 
   ggplot(aes(x=month, y=value, fill=status_color))+
   geom_bar(stat = "identity", position = position_dodge())+
-  scale_y_continuous(labels=comma, breaks=seq(0, 3000, 500), limits=c(0,3000))+
+  scale_y_continuous(labels=comma, breaks=seq(0, 2500, 1000), limits=c(0,2500))+
   si_style_ygrid()+
   labs(x = NULL, y = NULL)+
-  theme(axis.text.x  = element_text(vjust = 8, family = "Source Sans Pro"),
-        axis.text.y  = element_text(family = "Source Sans Pro" ),
+  theme(axis.text.x  = element_text(vjust = 4, family = "Source Sans Pro", size = 18),
+        axis.text.y  = element_text(family = "Source Sans Pro", size = 18),
         axis.line.x = element_blank(),
         axis.ticks.x = element_blank())+
   scale_fill_identity()+
   scale_color_identity() +
   geom_text(aes(label = comma(value)), position=position_dodge2(width=.9, preserve="single"), size = 3, vjust = -.3, family = "Source Sans Pro", fontface = "italic") 
-  
 
-si_save("Images/2022_arm/abate")  
+#df_abate %>% group_by(status) %>% summarise(across(c(value), sum, na.rm=TRUE)) %>% View()
+
+si_save("Images/2024_gr/abate_updated", width = 11)  
 
 # Total Abate Used
 
-df_21_22 %>% 
+df_21_23 %>% 
   filter(indicator == "abate_used",
          year == current_year) %>% 
-  group_by(month) %>% 
+  #group_by(month) %>% 
   summarise(across(c(value), sum, na.rm=TRUE)) %>% 
+  View()
   mutate(value = value/1000,
          month=match(month, month.name),
          month=month.abb[month],
@@ -72,7 +79,7 @@ df_21_22 %>%
         axis.text.x=element_blank(),
         axis.title.x=element_blank())
 
-si_save("Images/2022_arm/abate_used")  
+si_save("Images/2024_gr/abate_used", height = 2, width = 13)  
 ggsave("Images/2022_arm/abate_used_test.png",
        height = 5.625,
        width = 15)

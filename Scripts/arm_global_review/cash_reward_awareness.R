@@ -38,6 +38,7 @@ df_cra %>%
         axis.ticks.x = element_blank())+
   scale_fill_identity()
 
+
 si_save("Images/2022_arm/cra_county", width = 5)  
 
 #Uror
