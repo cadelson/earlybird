@@ -27,10 +27,6 @@ df_cases %>%
            sex =="F"& age_cat %notin% c("5-9", "10-14", "15-19", "25-29") ~ "#cfc3ff",
            sex =="M"& age_cat %notin% c("5-9", "10-14") ~ "#89dacb")) %>%
   mutate("total_cases" = sum(n, na.rm = TRUE)) %>%
-  # mutate("n_total" = sum(n, na.rm=TRUE),
-  #        county_label = glue("{county_of_detection} (n={comma(n_total)})")) %>% 
-  # View()
-  mutate_at(vars(label_female, label_male, n), funs(./sum(n))) %>%
   ggplot(aes(ifelse(sex == "M", -n, n), age_cat, fill=fill_color)) +
   geom_col(position = position_stack(reverse = TRUE))+
   geom_vline(aes(xintercept = 0), size = 1, color = "white") +

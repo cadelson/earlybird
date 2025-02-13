@@ -3,14 +3,18 @@
 # LICENSE: MIT
 # DATE: April 29, 2022
 # NOTES: November 2022 added animal rumours
+library(tidyverse)
+library(glitr)
+library(scales)
+
 `%notin%` <- Negate(`%in%`)
-current_month<-c("October")
-month_order<- c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October") 
+current_month<-c("December")
+month_order<- c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December") 
 
 # Munge data for humans and animals
-df_viz<-df_21_22 %>% 
+df_viz<-df_21_23 %>% 
   filter(indicator %in% c("rumours_total", "rumours_invest_24", "suspects_total", "cases_new"),
-         year=="2022",
+         year=="2023",
          sheet %in% c("MSR_Surv", "Non_MSR_Surv", "Non_MSR_Other", "animals")) %>%
   mutate(sheet = case_when(
     sheet %in% c("MSR_Surv", "Non_MSR_Surv", "Non_MSR_Other") ~ "human",
@@ -25,9 +29,9 @@ df_viz<-df_21_22 %>%
          month=fct_relevel(month, month_order),
          cases_color=case_when(is.na(cases_new) | cases_new==0 ~ "#D9CDC3",
                                cases_new==1 ~ "#FDAC7A",
-                               cases_new==2 ~ "#FDAC7A",
+                               cases_new==2 ~ "#c43d4d",
                                TRUE ~ "#A90773"),
-         cases_color=factor(cases_color, c("#D9CDC3", "#FDAC7A", "#DA3C6A"))) %>% 
+         cases_color=factor(cases_color, c("#D9CDC3", "#FDAC7A", "#c43d4d", "#DA3C6A"))) %>% 
   rename("Rumours"=rumours_ns,
          "Rumours Investigated <24 Hours"=rumours_invest_24,
          "Suspects"=suspects_total,
@@ -49,7 +53,8 @@ df_viz<-df_21_22 %>%
 df_viz %>% 
   filter(indicator %in% c("Rumours", "Suspects", rumours_total),
          sheet != "animals") %>% 
-  ggplot(aes(month, value, fill=forcats::fct_rev(indicator_fill_color)))+
+  ggplot(aes(month, value, fill=fct_rev(indicator_fill_color)))+
+  #ggplot(aes(month, value, fill=indicator_fill_color))+
   geom_bar(
     position="stack", stat="identity", show.legend=FALSE)+
   geom_text(aes(label=value_label), size=18/.pt, color="white", family="Source Sans Pro", vjust = -1)+
@@ -60,7 +65,7 @@ df_viz %>%
   scale_color_identity()+
   scale_alpha_manual(values = c("0.6"=0.6, "1"=1), guide='none')+
   labs(x = NULL, y = NULL)+
-  theme(axis.text.x  = element_text(size=16, family = "Source Sans Pro"),
+  theme(axis.text.x  = element_text(size=12, family = "Source Sans Pro"),
         axis.text.y  = element_text(size=14, family = "Source Sans Pro" ))+
   scale_y_continuous(labels=comma)
   
@@ -103,7 +108,7 @@ df_viz %>%
   scale_color_identity()+
   scale_alpha_manual(values = c("0.6"=0.6, "1"=1), guide='none')+
   labs(x = NULL, y = NULL)+
-  theme(axis.text.x  = element_text(size=16, family = "Source Sans Pro"),
+  theme(axis.text.x  = element_text(size=12, family = "Source Sans Pro"),
         axis.text.y  = element_text(size=14, family = "Source Sans Pro" ))+
   scale_y_continuous(labels=comma)
 

@@ -6,13 +6,17 @@
 
 
 `%notin%` <- Negate(`%in%`)
-current_month <- "October"
-current_year <- "2022"
+current_month <- "November"
+current_year <- "2024"
+
+library(tidyverse)
+library(glitr)
+library(scales)
 
 
 #MUNGE ==============================================================
 
-df_ki<-df_21_22 %>% 
+df_ki<-df_21_24 %>% 
   filter(indicator %in% c("hp_working", "staff_vv", "activity_cra", "visit_cso_po_spo_ta",
                           "visit_as_hw", "visit_pso_fo", "visit_secretariat", "report_expected",
                           "report_received", "hh_total", "filter_hh_cloth"),
@@ -47,7 +51,7 @@ df_ki1<-df_ki %>%
   pivot_longer(where(is.numeric), names_to="indicator", values_to="value") %>% 
   filter(indicator %notin% c("count", "report_received", "report_expected"))
 
-df_ki2<-df_21_22 %>% 
+df_ki2<-df_21_24 %>% 
   filter(indicator %in% c("report_expected", "report_received"),
          vas==1,
          #risk_level != "Risk Level 3",
@@ -65,17 +69,40 @@ df_ki2<-df_21_22 %>%
   select(risk_level, sheet, report_received, month) %>% 
   pivot_longer(where(is.numeric), names_to="indicator", values_to="value") 
 
+df_abate_eligible <- df_21_24 %>% 
+  filter(indicator %in% c("abate_treated", "abate_eligible"),
+         month == current_month,
+         year == current_year) %>% 
+  group_by(indicator, risk_level, sheet, month) %>% 
+  summarise(across(c(value), sum, na.rm=TRUE)) %>% 
+  pivot_wider(names_from = indicator, values_from = value) %>% 
+  mutate(value = abate_eligible/abate_treated,
+         indicator = "Eligible Water Sources Abated") %>% 
+  select(-abate_eligible, -abate_treated)
+
+df_abate <- df_21_24 %>% 
+  filter(indicator %in% c("abate_targeted", "abate_eligible"),
+         month == current_month,
+         year == current_year) %>% 
+  group_by(indicator, risk_level, sheet, month) %>% 
+  summarise(across(c(value), sum, na.rm=TRUE)) %>% 
+  pivot_wider(names_from = indicator, values_from = value) %>% 
+  mutate(value = abate_eligible/abate_targeted,
+         indicator = "Targeted Water Sources Eligible for Abate") %>% 
+  select(-abate_eligible, -abate_targeted)
+
 df_ki_final<-df_ki1 %>% 
-  bind_rows(df_ki2) %>% 
+  bind_rows(df_ki2, df_abate, df_abate_eligible) %>% 
   mutate(indicator=case_when(
     indicator=="staff_vv" ~ "Trained Village Volunteer",
     indicator=="hp_working" ~"Safe Water Access",
     indicator=="activity_cra" ~ "Cash Reward Activities",
     indicator=="supervision" ~ "Supervisory Visit",
     indicator=="report_received" ~ "Submitted Surveillance Reports",
-    indicator=="filter_coverage" ~ "Full Cloth Filter Coverage"))
+    indicator=="filter_coverage" ~ "Full Cloth Filter Coverage",
+    TRUE ~ indicator))
 
-indicator_order<-c("Safe Water Access", "Cash Reward Activities", "Trained Village Volunteer", "Supervisory Visit", "Submitted Surveillance Reports", "Full Cloth Filter Coverage")
+indicator_order<-c("Targeted Water Sources Eligible for Abate", "Safe Water Access", "Full Cloth Filter Coverage", "Cash Reward Activities", "Trained Village Volunteer", "Supervisory Visit", "Submitted Surveillance Reports", "Eligible Water Sources Abated")
 
 df_ki_final %>% 
   mutate(indicator=fct_relevel(indicator, indicator_order)) %>% 
@@ -90,48 +117,20 @@ df_ki_final %>%
   expand_limits(x = c(0, 1.05)) +
   si_style_xgrid() +
   labs(x = NULL, y = NULL,
-       subtitle = paste(current_month, "Status of VAS in Risk Level 1 (n=1,575) 2 (n=469) and 3 (n=447) counties")) +
+       subtitle = paste(current_month, "Status of VAS in Risk Level 1 (n=1,638) 2 (n=505) and 3 (n=342) Counties")) +
   theme(axis.text.y  = element_text(size = 14, family = "Source Sans Pro" ),
         axis.text.x  = element_text(size = 14, family = "Source Sans Pro" ),
         plot.subtitle = element_text(size = 16))
 
-si_save("Images/2022_arm/vas_key_indicators")
+si_save("Images/2024_arm/vas_key_indicators")
 
+# VAS Totals
+df_21_24 %>% 
+  filter(year == "2024",
+         indicator == "report_expected",
+         value == 1,
+         sheet == "MSR_Surv",
+         month == "November") %>% 
+  distinct(state, county, payam, boma, reporting_unit, reporting_unit_code, risk_level, value) %>% 
+  summarise(value = sum(value), .by = risk_level)
   
-
-
-df_vas_1_2<-
-tibble::tribble(
-                          ~indicator,         ~type, ~value,
-     "Access to Safe Drinking Water", "Level 1 VAS (n=869)",    0.2,
-         "Trained Village Volunteer", "Level 1 VAS (n=869)",   0.95,
-  "Monthly Health Education Session", "Level 1 VAS (n=869)",   0.73,
-                  "100% of Monthly Surveillance Reports", "Level 1 VAS (n=869)",   0.99,
-                 "Supervisory Visit", "Level 1 VAS (n=869)",   0.95,
-     "Access to Safe Drinking Water", "Level 2 VAS (n=613)",   0.27,
-         "Trained Village Volunteer", "Level 2 VAS (n=613)",   0.77,
-  "Monthly Health Education Session", "Level 2 VAS (n=613)",   0.67,
-                  "100% of Monthly Surveillance Reports", "Level 2 VAS (n=613)",   0.97,
-                 "Supervisory Visit", "Level 2 VAS (n=613)",   0.88
-  )
-
-df_vas_1_2 %>% 
-  mutate(value = as.numeric(value)) %>%
-  # mutate(month=fct_relevel(month, month_order)) %>% 
-  ggplot(aes(x=indicator, y=value, fill=denim))+
-  geom_col(alpha=.9, show.legend = FALSE)+
-  facet_wrap(~type, ncol=2)+
-  geom_text(aes(label=scales::percent(value, accuracy=1)), na.rm=TRUE, color=trolley_grey, hjust=0, size=18, family="Source Sans Pro SemiBold")+
-  coord_flip(ylim = c(0, 1.1))+
-  scale_y_continuous(labels = scales::percent, breaks=seq(0, 1, .25))+
-  si_style_ygrid()+
-  labs(x = NULL, y = NULL)+
-  theme(axis.text.x  = element_text(vjust=0.5, size=50, family = "Source Sans Pro"),
-        axis.text.y  = element_text(vjust=0.5, size=50, family = "Source Sans Pro" ),
-        strip.text = element_text(size = 72, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank())
-
-ggsave("key_indicators_lvl1_2.png",
-       height = 18,
-       width = 40, limitsize = FALSE)

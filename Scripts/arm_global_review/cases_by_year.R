@@ -4,6 +4,13 @@
 # DATE: Nov 25, 2021
 # NOTES: November 2022 - updated for 2022 ARM
 
+library(tidyverse)
+library(glitr)
+library(scales)
+library(lubridate)
+library(extrafont)
+library(AzureStor)
+
 df_year<-
   tibble::tribble(
     ~Year,  ~Cases,
@@ -36,17 +43,12 @@ df_year<-
     2019L,       4,
     2020L,       1,
     2021L,       4,
-    2022L,       6
+    2022L,       6,
+    2023L,       2,
+    2024L,       9
     )
-
-df_year %>% 
-  summarise(across(c(Cases), sum, na.rm = TRUE))
-
-
-# df_year %>% 
-#   ggplot(aes(x=Year, y=Cases))+
-#   geom_col(stat="sum", fill=scooter, alpha=.8, width=.85)+
   
+
 df_year %>% 
   ggplot(aes(x=Year, y=Cases))+
   geom_area(alpha=.5, fill=denim_light)+
@@ -67,14 +69,14 @@ df_year %>%
         axis.text.x = element_text(size = 15, family = "Source Sans Pro", margin = margin(t = -.18, unit = "in")),
         axis.ticks.x = element_blank())
 
-si_save("Images/2022_arm/gw_yearly_cases.png")
+si_save("Images/2024_arm/gw_yearly_cases_non_subcutaneous.png")
 
 df_year %>% 
   filter(Year>2014) %>% 
   ggplot(aes(x=Year, y=Cases))+
   geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2015, to=2021, by = 1), size=.5, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from=0, to=10, by = 5), size=.5, color="grey90")+
+  geom_vline(xintercept = seq(from = 2015, to = 2024, by = 1), size=.5, color="white", linetype="dotted")+
+  geom_hline(yintercept = seq(from = 0, to = 20, by = 5), size=.5, color="grey90")+
   geom_line(size=1, colour=denim)+
   geom_point(fill = "white",
              shape = 21,
@@ -82,32 +84,99 @@ df_year %>%
              colour = denim,
              stroke=2) +
   si_style_ygrid()+
-  scale_y_continuous(labels = number_format(accuracy=1), breaks=seq(from=0, to=10, by=5), limits=c(0, 10))+
-  scale_x_continuous(breaks=seq(2015, 2022, 1))+
-  labs(x = NULL, y = NULL, color = NULL, subtitle="2015-2022", family="Source Sans Pro")+
+  scale_y_continuous(labels = number_format(accuracy=1), breaks=seq(from=0, to=30, by=10), limits=c(0, 30))+
+  scale_x_continuous(breaks=seq(2015, 2024, 1))+
+  labs(x = NULL, y = NULL, color = NULL, subtitle="2015-2024", family="Source Sans Pro")+
   scale_size_area()+
   theme(axis.text = element_text(size = 24),
         plot.subtitle = element_text(size=28, hjust=.15, vjust=3))
 
-si_save("Images/2022_arm/cases_yearly_recent.png")
+si_save("Images/2024_arm/cases_yearly_recent.png")
 
 #########################
 
 #For Specific Counties
 
-############Tonj East
-df_patient_data %>% 
-  filter(county == "Tonj East",
-         first_worm == 1) %>%
-  group_by(year) %>% 
-  count() %>% 
+
+bl_endp_key <- storage_endpoint(Sys.getenv("CC_GW_AZURE_BLOB_URL"),
+                                key = Sys.getenv("CC_GW_AZURE_KEY"))
+
+cont <- storage_container(bl_endp_key, "gwep")
+
+# List all files in the directory
+files_list <- list_storage_files(cont, "DEVELOPMENT/rds files")
+rds_file_path <- "DEVELOPMENT/rds files/global_patient_animal_dataset.rds"
+temp_rds <- tempfile(fileext = ".rds")
+storage_download(cont, src = rds_file_path, dest = temp_rds, overwrite = TRUE)
+
+global_data <- readRDS(temp_rds) %>% 
+  mutate(snu2_detect = case_when(
+    snu2_detect == "Lopa/Lafon" ~ "Lafon",
+    TRUE ~ snu2_detect))
+
+current_year <- global_data %>% 
+  summarise(max_year = max(year_event)) %>% 
+  pull(max_year)
+
+
+############ County specific
+
+county_selection <- "Torit"
+
+global_data_munge_county <- global_data %>% 
+  filter(snu2_detect == county_selection,
+         country == "South Sudan",
+         host %in% c("Human", "Dog", "Cat")) %>%
+  group_by(year_event) %>% 
+  distinct(id_event) %>%
+  tally() %>% 
   ungroup() %>% 
-  mutate(year = as.numeric(year),
+  mutate(year_event = as.numeric(year_event),
          n = as.numeric(n)) %>%
-  complete(year = 2007:2022, fill = list(n=0)) %>%
-  ggplot(aes(x=year, y=n))+
+  complete(year_event = 2007:current_year, fill = list(n=0))
+
+county_max <- global_data_munge_county %>% 
+  summarise(max_cases = ceiling(max(n) / 10) * 10) %>% 
+  pull(max_cases)
+
+county_recent_max <- global_data_munge_county %>% 
+  filter(year_event > 2011) %>% 
+  summarise(max_cases = ceiling(max(n) / 5) * 5) %>% 
+  pull(max_cases)
+
+
+global_data_munge_county %>% 
+  ggplot(aes(x=year_event, y=n))+
   geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2007, to=2021, by = 1), size=.75, color="white", linetype="dotted")+
+  geom_vline(xintercept = seq(from=2007, to=current_year, by = 1), size=.75, color="white", linetype="dotted")+
+  geom_hline(yintercept = seq(from=0, to= county_max, by = 100), size=.5, color="grey90")+
+  geom_line(size=1, colour=denim)+
+  geom_point(fill = "white", 
+             shape = 21, 
+             size = 1.5, 
+             colour = denim,
+             stroke=1.5) +
+  si_style_ygrid()+
+  scale_x_continuous(breaks=seq(2007, current_year, 1))+
+  scale_y_continuous(breaks = seq(0, county_max, county_max/2), labels=comma, limits = c(0, county_max)) +
+  labs(x = NULL, y = NULL, color = NULL)+
+  scale_size_area()+
+  theme(axis.text.x  = element_text(size = 13, family = "Source Sans Pro", vjust = 3),
+        axis.text.y  = element_text(size = 10, family = "Source Sans Pro" ),
+        strip.text = element_text(hjust = .02, family = "Source Sans Pro"),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        plot.title = element_text(hjust=0, vjust=0),
+        plot.subtitle = element_text(hjust=0, vjust=0))
+
+si_save(paste0("Images/2024_arm/county_presentations/cases/yearly_cases_", 
+               make_clean_names(county_selection), "_", current_year, ".png"))
+
+global_data_munge_county %>% 
+  filter(year_event > 2011) %>% 
+  ggplot(aes(x=year_event, y=n))+
+  geom_area(alpha=.5, fill=denim_light)+
+  geom_vline(xintercept = seq(from=2012, to=current_year, by = 1), size=.75, color="white", linetype="dotted")+
   geom_hline(yintercept = seq(from=0, to=450, by = 100), size=.5, color="grey90")+
   geom_line(size=1, colour=denim)+
   geom_point(fill = "white", 
@@ -116,11 +185,12 @@ df_patient_data %>%
              colour = denim,
              stroke=1.5) +
   si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2007, 2022, 1))+
+  scale_x_continuous(breaks=seq(2012, current_year, 1))+
+  scale_y_continuous(breaks = seq(0, county_recent_max, county_recent_max/5), labels=comma, limits = c(0, county_recent_max)) +
   labs(x = NULL, y = NULL, color = NULL)+
   scale_size_area()+
-  theme(axis.text.x  = element_text(size = 13, family = "Source Sans Pro", vjust = 3),
-        axis.text.y  = element_text(size = 10, family = "Source Sans Pro" ),
+  theme(axis.text.x  = element_text(size = 17, family = "Source Sans Pro", vjust = 3),
+        axis.text.y  = element_text(size = 14, family = "Source Sans Pro" ),
         strip.text = element_text(hjust=.02, family = "Source Sans Pro"),
         axis.line.x = element_blank(),
         axis.ticks.x = element_blank(),
@@ -128,380 +198,25 @@ df_patient_data %>%
         plot.subtitle = element_text(hjust=0, vjust=0))
 
 
-si_save("Images/2022_arm/county_presentations/yearly_cases_te.png")
-
-
-#Smaller graph
-df_patient_data %>% 
-  filter(county == "Tonj East",
-         first_worm == 1, 
-         year > 2011) %>%
-  group_by(year) %>% 
-  count() %>% 
-  ungroup() %>% 
-  mutate(year = as.numeric(year),
-         n = as.numeric(n)) %>%
-  complete(year = 2012:2022, fill = list(n=0)) %>%
-  ggplot(aes(x=year, y=n))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2012, to=2022, by = 1), size=.75, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from=0, to=3, by = 1), size=.5, color="grey90")+
-  geom_line(size=1, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 1.5, 
-             colour = denim,
-             stroke=1.5) +
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2012, 2022, 1))+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size = 20, family = "Source Sans Pro", vjust = 3),
-        axis.text.y  = element_text(size = 18, family = "Source Sans Pro" ),
-        strip.text = element_text(hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(hjust=0, vjust=0),
-        plot.subtitle = element_text(hjust=0, vjust=0))
-si_save("Images/2022_arm/county_presentations/yearly_cases_te_small.png")
-
-
-
-
-############Uror
-df_patient_data %>% 
-  filter(county == "Uror",
-         first_worm == 1) %>%
-  group_by(year) %>% 
-  count() %>% 
-  ungroup() %>% 
-  mutate(year = as.numeric(year),
-         n = as.numeric(n)) %>%
-  complete(year = 2007:2022, fill = list(n=0)) %>%
-  ggplot(aes(x=year, y=n))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2007, to=2022, by = 1), size=.75, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from=0, to=200, by = 50), size=.5, color="grey90")+
-  geom_line(size=1, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 1.5, 
-             colour = denim,
-             stroke=1.5) +
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2007, 2022, 1))+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size = 13, family = "Source Sans Pro", vjust = 3),
-        axis.text.y  = element_text(size = 10, family = "Source Sans Pro" ),
-        strip.text = element_text(hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(hjust=0, vjust=0),
-        plot.subtitle = element_text(hjust=0, vjust=0))
-
-
-si_save("Images/2022_arm/county_presentations/yearly_cases_ur.png")
-
-
-#Smaller graph
-df_patient_data %>% 
-  filter(county == "Uror",
-         first_worm == 1, 
-         year > 2011) %>%
-  group_by(year) %>% 
-  count() %>% 
-  ungroup() %>% 
-  mutate(year = as.numeric(year),
-         n = as.numeric(n)) %>%
-  complete(year = 2012:2022, fill = list(n=0)) %>%
-  ggplot(aes(x=year, y=n))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2012, to=2021, by = 1), size=.75, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from=0, to=3, by = 1), size=.5, color="grey90")+
-  geom_line(size=1, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 1.5, 
-             colour = denim,
-             stroke=1.5) +
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2012, 2022, 1))+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size = 20, family = "Source Sans Pro", vjust = 3),
-        axis.text.y  = element_text(size = 18, family = "Source Sans Pro" ),
-        strip.text = element_text(hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(hjust=0, vjust=0),
-        plot.subtitle = element_text(hjust=0, vjust=0))
-si_save("Images/2022_arm/county_presentations/yearly_cases_ur_small.png")
-
-
-############Rumbek North
-df_patient_data %>% 
-  filter(county == "Rumbek North",
-         first_worm == 1) %>%
-  group_by(year) %>% 
-  count() %>% 
-  ungroup() %>% 
-  View()
-  mutate(year = as.numeric(year),
-         n = as.numeric(n)) %>%
-  complete(year = 2007:2022, fill = list(n=0)) %>%
-  ggplot(aes(x=year, y=n))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2007, to=2022, by = 1), size=.75, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from=0, to=20, by = 5), size=.5, color="grey90")+
-  geom_line(size=1, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 1.5, 
-             colour = denim,
-             stroke=1.5) +
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2007, 2022, 1))+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size = 13, family = "Source Sans Pro", vjust = 3),
-        axis.text.y  = element_text(size = 10, family = "Source Sans Pro" ),
-        strip.text = element_text(hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(hjust=0, vjust=0),
-        plot.subtitle = element_text(hjust=0, vjust=0))
-
-
-si_save("Images/2022_arm/county_presentations/yearly_cases_rn.png")
-
-############ Awerial
-df_patient_data %>% 
-  filter(county == "Awerial",
-         first_worm == 1) %>%
-  group_by(year) %>% 
-  count() %>% 
-  ungroup() %>% 
-  mutate(year = as.numeric(year),
-         n = as.numeric(n)) %>%
-  complete(year = 2007:2022, fill = list(n=0)) %>%
-  ggplot(aes(x=year, y=n))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2007, to=2022, by = 1), size=.75, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from=0, to=400, by = 100), size=.5, color="grey90")+
-  geom_line(size=1, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 1.5, 
-             colour = denim,
-             stroke=1.5) +
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2007, 2022, 1))+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size = 13, family = "Source Sans Pro", vjust = 3),
-        axis.text.y  = element_text(size = 10, family = "Source Sans Pro" ),
-        strip.text = element_text(hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(hjust=0, vjust=0),
-        plot.subtitle = element_text(hjust=0, vjust=0))
-
-
-si_save("Images/2022_arm/county_presentations/yearly_cases_aw.png")
-
-
-#Smaller graph
-df_patient_data %>% 
-  filter(county == "Awerial",
-         first_worm == 1, 
-         year > 2011) %>%
-  group_by(year) %>% 
-  count() %>% 
-  ungroup() %>% 
-  mutate(year = as.numeric(year),
-         n = as.numeric(n)) %>%
-  complete(year = 2012:2022, fill = list(n=0)) %>%
-  ggplot(aes(x=year, y=n))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2012, to=2022, by = 1), size=.75, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from=0, to= 15, by = 5), size=.5, color="grey90")+
-  geom_line(size=1, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 1.5, 
-             colour = denim,
-             stroke=1.5) +
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2012, 2022, 1))+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size = 20, family = "Source Sans Pro", vjust = 3),
-        axis.text.y  = element_text(size = 18, family = "Source Sans Pro" ),
-        strip.text = element_text(hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(hjust=0, vjust=0),
-        plot.subtitle = element_text(hjust=0, vjust=0))
-si_save("Images/2022_arm/county_presentations/yearly_cases_aw_small.png")
-
-
-############ Lopa/Lafon
-df_patient_data %>% 
-  filter(county == "Lopa/Lafon",
-         first_worm == 1) %>%
-  group_by(year) %>% 
-  count() %>% 
-  ungroup() %>% 
-  mutate(year = as.numeric(year),
-         n = as.numeric(n)) %>%
-  complete(year = 2007:2022, fill = list(n=0)) %>%
-  ggplot(aes(x=year, y=n))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2007, to=2022, by = 1), size=.75, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from=0, to=3, by = 1), size=.5, color="grey90")+
-  geom_line(size=1, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 1.5, 
-             colour = denim,
-             stroke=1.5) +
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2007, 2022, 1))+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size = 13, family = "Source Sans Pro", vjust = 3),
-        axis.text.y  = element_text(size = 10, family = "Source Sans Pro" ),
-        strip.text = element_text(hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(hjust=0, vjust=0),
-        plot.subtitle = element_text(hjust=0, vjust=0))
-
-
-si_save("Images/2022_arm/county_presentations/yearly_cases_ll.png")
-
-
-#Smaller graph
-df_patient_data %>% 
-  filter(county == "Awerial",
-         first_worm == 1, 
-         year > 2011) %>%
-  group_by(year) %>% 
-  count() %>% 
-  ungroup() %>% 
-  mutate(year = as.numeric(year),
-         n = as.numeric(n)) %>%
-  complete(year = 2012:2022, fill = list(n=0)) %>%
-  ggplot(aes(x=year, y=n))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2012, to=2022, by = 1), size=.75, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from=0, to= 15, by = 5), size=.5, color="grey90")+
-  geom_line(size=1, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 1.5, 
-             colour = denim,
-             stroke=1.5) +
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2012, 2022, 1))+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size = 20, family = "Source Sans Pro", vjust = 3),
-        axis.text.y  = element_text(size = 18, family = "Source Sans Pro" ),
-        strip.text = element_text(hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(hjust=0, vjust=0),
-        plot.subtitle = element_text(hjust=0, vjust=0))
-si_save("Images/2022_arm/county_presentations/yearly_cases_aw_small.png")
-
-
-
-############ Nyirol
-df_patient_data %>% 
-  filter(county == "Nyirol",
-         first_worm == 1) %>%
-  group_by(year) %>% 
-  count() %>% 
-  ungroup() %>% 
-  mutate(year = as.numeric(year),
-         n = as.numeric(n)) %>%
-  complete(year = 2007:2022, fill = list(n=0)) %>%
-  ggplot(aes(x=year, y=n))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2007, to=2022, by = 1), size=.75, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from = 0, to = 100, by = 25), size=.5, color="grey90")+
-  geom_line(size=1, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 1.5, 
-             colour = denim,
-             stroke=1.5) +
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2007, 2022, 1))+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size = 13, family = "Source Sans Pro", vjust = 3),
-        axis.text.y  = element_text(size = 10, family = "Source Sans Pro" ),
-        strip.text = element_text(hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(hjust=0, vjust=0),
-        plot.subtitle = element_text(hjust=0, vjust=0))
-
-
-si_save("Images/2022_arm/county_presentations/yearly_cases_ny.png")
-
-
-#Smaller graph
-df_patient_data %>% 
-  filter(county == "Nyirol",
-         first_worm == 1, 
-         year > 2011) %>%
-  group_by(year) %>% 
-  count() %>% 
-  ungroup() %>% 
-  mutate(year = as.numeric(year),
-         n = as.numeric(n)) %>%
-  complete(year = 2012:2022, fill = list(n=0)) %>%
-  ggplot(aes(x=year, y=n))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2012, to=2022, by = 1), size=.75, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from=0, to= 3, by = 1), size=.5, color="grey90")+
-  geom_line(size=1, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 1.5, 
-             colour = denim,
-             stroke=1.5) +
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2012, 2022, 1))+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size = 30, family = "Source Sans Pro", vjust = 3),
-        axis.text.y  = element_text(size = 36, family = "Source Sans Pro" ),
-        strip.text = element_text(hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(hjust=0, vjust=0),
-        plot.subtitle = element_text(hjust=0, vjust=0))
-si_save("Images/2022_arm/county_presentations/yearly_cases_ny_small.png", width =14)
+si_save(paste0("Images/2024_arm/county_presentations/cases/yearly_cases_recent_", 
+               make_clean_names(county_selection), "_", current_year, ".png"))
 
 
 ############ Akobo and Nyirol
-df_patient_data %>% 
-  filter(county %in% c("Akobo","Nyirol"),
+global_data %>% 
+  filter(snu2_detect %in% c("Akobo","Nyirol"),
+         country == "South Sudan",
+         host %in% c("Human", "Dog", "Cat"),
          first_worm == 1) %>%
-  group_by(year, county) %>% 
+  group_by(year_event, snu2_detect) %>% 
   count() %>% 
   ungroup() %>% 
-  mutate(year = as.numeric(year),
+  mutate(year_event = as.numeric(year_event),
          n = as.numeric(n)) %>%
-  complete(county, year = 2007:2022, fill = list(n=0)) %>%
-  ggplot(aes(x=year, y=n))+
+  complete(snu2_detect, year_event = 2007:2024, fill = list(n=0)) %>%
+  ggplot(aes(x=year_event, y=n))+
   geom_area(alpha=.5, fill=denim_light)+
-  facet_wrap(~county, ncol =1) +
+  facet_wrap(~snu2_detect, ncol =1) +
   geom_vline(xintercept = seq(from=2007, to=2022, by = 1), size=.75, color="white", linetype="dotted")+
   geom_hline(yintercept = seq(from = 0, to = 100, by = 25), size=.5, color="grey90")+
   geom_line(size=1, colour=denim)+
@@ -511,7 +226,7 @@ df_patient_data %>%
              colour = denim,
              stroke=1.5) +
   si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2007, 2022, 1))+
+  scale_x_continuous(breaks=seq(2007, 2024, 1))+
   labs(x = NULL, y = NULL, color = NULL)+
   scale_size_area()+
   theme(axis.text.x  = element_text(size = 15, family = "Source Sans Pro", vjust = 3),
@@ -523,245 +238,7 @@ df_patient_data %>%
         plot.subtitle = element_text(hjust=0, vjust=0))
 
 
-si_save("Images/2022_arm/county_presentations/yearly_cases_ak_ny.png")
-
-############ Tonj North
-df_patient_data %>% 
-  filter(county == "Tonj North",
-         first_worm == 1) %>%
-  #group_by(year) %>% 
-  count() %>% 
-  ungroup() %>% 
-  mutate(year = as.numeric(year),
-         n = as.numeric(n)) %>%
-complete(year = 2007:2022, fill = list(n=0)) %>%
-  ggplot(aes(x=year, y=n))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2007, to=2022, by = 1), size=.75, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from = 0, to = 800, by = 200), size=.5, color="grey90")+
-  geom_line(size=1, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 1.5, 
-             colour = denim,
-             stroke=1.5) +
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2007, 2022, 1))+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size = 13, family = "Source Sans Pro", vjust = 3),
-        axis.text.y  = element_text(size = 10, family = "Source Sans Pro" ),
-        strip.text = element_text(hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(hjust=0, vjust=0),
-        plot.subtitle = element_text(hjust=0, vjust=0))
-
-
-si_save("Images/2022_arm/county_presentations/yearly_cases_tn.png")
-
-#Smaller graph
-df_patient_data %>% 
-  filter(county == "Tonj North",
-         first_worm == 1, 
-         year > 2011) %>%
-  group_by(year) %>% 
-  count() %>% 
-  ungroup() %>% 
-  mutate(year = as.numeric(year),
-         n = as.numeric(n)) %>%
-  complete(year = 2012:2022, fill = list(n=0)) %>%
-  ggplot(aes(x=year, y=n))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2012, to=2022, by = 1), size=.75, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from=0, to= 8, by = 2), size=.5, color="grey90")+
-  geom_line(size=1, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 1.5, 
-             colour = denim,
-             stroke=1.5) +
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2012, 2022, 1))+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size = 20, family = "Source Sans Pro", vjust = 3),
-        axis.text.y  = element_text(size = 18, family = "Source Sans Pro" ),
-        strip.text = element_text(hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(hjust=0, vjust=0),
-        plot.subtitle = element_text(hjust=0, vjust=0))
-si_save("Images/2022_arm/county_presentations/yearly_cases_tn_small.png")
-
-############ Rumbek Centre
-df_patient_data %>% 
-  filter(county == "Rumbek Centre",
-         first_worm == 1) %>%
-  group_by(year) %>% 
-  count() %>% 
-  ungroup() %>% 
-  mutate(year = as.numeric(year),
-         n = as.numeric(n)) %>%
-  complete(year = 2007:2022, fill = list(n=0)) %>%
-  ggplot(aes(x=year, y=n))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2007, to=2022, by = 1), size=.75, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from = 0, to = 6, by = 2), size=.5, color="grey90")+
-  geom_line(size=1, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 1.5, 
-             colour = denim,
-             stroke=1.5) +
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2007, 2022, 1))+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size = 13, family = "Source Sans Pro", vjust = 3),
-        axis.text.y  = element_text(size = 10, family = "Source Sans Pro" ),
-        strip.text = element_text(hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(hjust=0, vjust=0),
-        plot.subtitle = element_text(hjust=0, vjust=0))
-
-
-si_save("Images/2022_arm/county_presentations/yearly_cases_rc.png")
-
-############ Terekeka
-df_patient_data %>% 
-  filter(county == "Terekeka",
-         first_worm == 1) %>%
-  group_by(year) %>% 
-  count() %>% 
-  ungroup() %>% 
-  mutate(year = as.numeric(year),
-         n = as.numeric(n)) %>%
-  complete(year = 2007:2022, fill = list(n=0)) %>%
-  ggplot(aes(x=year, y=n))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2007, to=2022, by = 1), size=.75, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from = 0, to = 300, by = 100), size=.5, color="grey90")+
-  geom_line(size=1, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 1.5, 
-             colour = denim,
-             stroke=1.5) +
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2007, 2022, 1))+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size = 13, family = "Source Sans Pro", vjust = 3),
-        axis.text.y  = element_text(size = 10, family = "Source Sans Pro" ),
-        strip.text = element_text(hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(hjust=0, vjust=0),
-        plot.subtitle = element_text(hjust=0, vjust=0))
-
-
-si_save("Images/2022_arm/county_presentations/yearly_cases_ter.png")
-
-
-
-
-df_year_region %>% 
-  filter(location=="Uror") %>% 
-  ggplot(aes(x=year, y=value))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2006, to=2021, by = 1), size=2, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from=0, to=180, by = 50), size=.5, color="grey90")+
-  geom_line(size=2.5, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 3, 
-             colour = denim,
-             stroke=3) +
-  #geom_text_repel(aes(label=comma(round(value), accuracy=1)), na.rm=TRUE, size=12, segment.color = 'transparent', color="grey30", nudge_y=15, family="Source Sans Pro SemiBold",)+
-  #geom_text(aes(label=value), na.rm=TRUE, color=grey80k, vjust=-1.5, size=16, family="Source Sans Pro SemiBold")+
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2006, 2021, 1))+
-  #geom_text(aes(label=(Cases), color=grey70k, vjust=-1),na.rm=TRUE)+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size=32, family = "Source Sans Pro"),
-        axis.text.y  = element_text( size=32, family = "Source Sans Pro" ),
-        strip.text = element_text(size = 38, hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(size=42, hjust=0, vjust=0),
-        plot.subtitle = element_text(size=38, hjust=0, vjust=0))
-theme(axis.text = element_text(size = 12))
-
-ggsave("gw_yearly_cases_UR.png",
-       height = 14,
-       width = 24)
-
-df_year_region %>% 
-  filter(location=="Rumbek North") %>% 
-  ggplot(aes(x=year, y=value))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2006, to=2021, by = 1), size=2, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from=0, to=20, by = 5), size=.5, color="grey90")+
-  geom_line(size=2.5, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 3, 
-             colour = denim,
-             stroke=3) +
-  #geom_text_repel(aes(label=comma(round(value), accuracy=1)), na.rm=TRUE, size=12, segment.color = 'transparent', color="grey30", nudge_y=1.5, family="Source Sans Pro SemiBold",)+
-  #geom_text(aes(label=value), na.rm=TRUE, color=grey80k, vjust=-1.5, size=16, family="Source Sans Pro SemiBold")+
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2006, 2021, 1))+
-  #geom_text(aes(label=(Cases), color=grey70k, vjust=-1),na.rm=TRUE)+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size=32, family = "Source Sans Pro"),
-        axis.text.y  = element_text( size=32, family = "Source Sans Pro" ),
-        strip.text = element_text(size = 38, hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(size=42, hjust=0, vjust=0),
-        plot.subtitle = element_text(size=38, hjust=0, vjust=0))
-theme(axis.text = element_text(size = 12))
-
-ggsave("gw_yearly_cases_RN.png",
-       height = 14,
-       width = 24)
-
-df_year_region %>% 
-  filter(location=="Awerial") %>% 
-  ggplot(aes(x=year, y=value))+
-  geom_area(alpha=.5, fill=denim_light)+
-  geom_vline(xintercept = seq(from=2006, to=2021, by = 1), size=2, color="white", linetype="dotted")+
-  geom_hline(yintercept = seq(from=0, to=450, by = 50), size=.5, color="grey90")+
-  geom_line(size=2.5, colour=denim)+
-  geom_point(fill = "white", 
-             shape = 21, 
-             size = 3, 
-             colour = denim,
-             stroke=3) +
-  #geom_text_repel(aes(label=comma(round(value), accuracy=1)), na.rm=TRUE, size=12, segment.color = 'transparent', color="grey30", nudge_y=35, family="Source Sans Pro SemiBold",)+
-  #geom_text(aes(label=value), na.rm=TRUE, color=grey80k, vjust=-1.5, size=16, family="Source Sans Pro SemiBold")+
-  si_style_ygrid()+
-  scale_x_continuous(breaks=seq(2006, 2021, 1))+
-  #geom_text(aes(label=(Cases), color=grey70k, vjust=-1),na.rm=TRUE)+
-  labs(x = NULL, y = NULL, color = NULL)+
-  scale_size_area()+
-  theme(axis.text.x  = element_text(size=32, family = "Source Sans Pro"),
-        axis.text.y  = element_text( size=32, family = "Source Sans Pro" ),
-        strip.text = element_text(size = 38, hjust=.02, family = "Source Sans Pro"),
-        axis.line.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        plot.title = element_text(size=42, hjust=0, vjust=0),
-        plot.subtitle = element_text(size=38, hjust=0, vjust=0))
-theme(axis.text = element_text(size = 12))
-
-ggsave("gw_yearly_cases_AW.png",
-       height = 14,
-       width = 24)
+si_save("Images/2024_arm/county_presentations/cases/yearly_cases_ak_ny.png")
 
 
 ##### Facets for level two districts

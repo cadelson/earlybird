@@ -2,10 +2,17 @@
 # AUTHOR: Cody Adelson | Data Manager
 # LICENSE: MIT
 # DATE: November 24, 2022
+# Note - for next year, update cases_provisional back to cases_new, for now removed case bar
 
-df_cr <-df_21_22 %>% 
-  filter(indicator %in% c("cr_reached", "cases_new"),
-         year == "2022") %>% 
+library(tidyverse)
+library(writexl)
+library(glitr)
+library(scales)
+library(waffle)
+
+df_cr <-df_21_24 %>% 
+  filter(indicator %in% c("cr_reached", "cases_provisional"),
+         year == "2024") %>% 
   group_by(indicator, month, risk_level) %>% 
   summarise(across(c(value), sum, na.rm=TRUE)) %>% 
   ungroup() %>% 
@@ -15,29 +22,33 @@ df_cr <-df_21_22 %>%
          month_short = substr(month,1,1),
          value_lab=paste((round(cr_reached/1000)), "k", sep=""))
 
-month_order<- c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October") 
-month_order_ab<- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct")
+month_order<- c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November") 
+month_order_ab<- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov")
 rl_order<- c("risk level 3", "risk level 2", "risk_level 1")
-rl_color_order<- c(genoa, golden_sand, old_rose)
+rl_color_order<- c(genoa, golden_sand_light, old_rose)
 
-early_year <- c("Jan", "Feb", "Mar", "Apr", "May")
-late_year<- c("Jun", "Jul", "Aug", "Sep", "Oct")
+# early_year <- c("Jan", "Feb", "Mar", "Apr", "May")
+# late_year<- c("Jun", "Jul", "Aug", "Sep", "Oct", "Nov")
 
 df_cr %>% 
   mutate(risk_level = as.character(risk_level)) %>% 
+  # mutate(rl_color=case_when(
+  #   risk_level=="Risk Level 1" & month %in% c(early_year) ~old_rose_light,
+  #   risk_level=="Risk Level 1" & month %in% c(late_year) ~old_rose,
+  #   risk_level=="Risk Level 2" ~ golden_sand_light,
+  #   risk_level=="Risk Level 3" & month %in% c(early_year) ~ genoa_light,
+  #   risk_level=="Risk Level 3" & month %in% c(late_year) ~ genoa)) %>%
   mutate(rl_color=case_when(
-    risk_level=="Risk Level 1" & month %in% c(early_year) ~old_rose_light,
-    risk_level=="Risk Level 1" & month %in% c(late_year) ~old_rose,
-    risk_level=="Risk Level 2" ~golden_sand_light,
-    risk_level=="Risk Level 3" & month %in% c(early_year) ~ genoa_light,
-    risk_level=="Risk Level 3" & month %in% c(late_year) ~ genoa)) %>%
+    risk_level=="Risk Level 1" ~old_rose,
+    risk_level=="Risk Level 2" ~ golden_sand,
+    risk_level=="Risk Level 3" ~ genoa)) %>%
   mutate(month=fct_relevel(month, month_order_ab),
          rl_color=fct_relevel(rl_color, rl_color_order),
-         cases_color=case_when(is.na(cases_new) | cases_new == 0 ~ "#D9CDC3",
-                               cases_new == 1 ~ "#FDAC7A",
-                               cases_new == 2 ~ "#DA3C6A",
+         cases_color=case_when(is.na(cases_provisional) | cases_provisional == 0 ~ "#D9CDC3",
+                               cases_provisional == 1 ~ "#FDAC7A",
+                               cases_provisional == 2 ~ "#DA3C6A",
                                TRUE ~ "#A90773"),
-         cases_color=factor(cases_color, c("#D9CDC3", "#FDAC7A", "#DA3C6A")))%>%
+         cases_color=factor(cases_color, c("#D9CDC3", "#FDAC7A", "#DA3C6A", "#A90773"))) %>%
   ggplot(aes(x=month, y = cr_reached, fill = rl_color))+
   geom_col(width=.7, position=position_dodge(.7))+
   #geom_col(width=.7, position=position_dodge(.7), alpha=.8)+
@@ -45,8 +56,8 @@ df_cr %>%
   geom_text(aes(label=value_lab), position=position_dodge2(width=.7, preserve="single"), na.rm=TRUE, color="black", vjust=-.5, size=2.75, family="Source Sans Pro SemiBold")+
   #geom_text(aes(label=comma(round(value), accuracy=1)), position=position_dodge2(width=.7, preserve="single"), na.rm=TRUE, color="black", vjust=-.5, size=7, family="Source Sans Pro SemiBold")+
   scale_y_continuous(breaks=seq(0, 350000, 50000), limits=c(0, 350000), labels=label_number(suffix="k", scale = 1e-3))+
-  scale_x_discrete(labels = c("J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"))+
-  geom_rug(aes(color = factor(cases_color)), size=2, sides="b", na.rm = TRUE) +
+  scale_x_discrete(labels = c("J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N"))+
+  #geom_rug(aes(color = factor(cases_color)), size=2, sides="b", na.rm = TRUE) +
   si_style_ygrid()+
   labs(x = NULL, y = NULL)+
   theme(axis.text.x  = element_text(family = "Source Sans Pro"),
@@ -58,7 +69,7 @@ df_cr %>%
   scale_fill_identity()+
   scale_color_identity()
 
-si_save("Images/2022_arm/cr_month")  
+si_save("Images/2024_arm/cr_month")  
 
 ggsave("cr_by_month_fy21.png",
        height = 9,
@@ -67,7 +78,8 @@ ggsave("cr_by_month_fy21.png",
 df_cr_waf<-df_cr %>% 
   group_by(risk_level) %>% 
   summarise(across(c(cr_reached), sum, na.rm=TRUE)) %>% 
-  group_by(risk_level) %>% #do calculations by siteID
+  View()
+  group_by(risk_level) %>% 
   ungroup() %>% 
   mutate(cr_reached = round(cr_reached / sum(cr_reached) * 100)) %>% 
   pivot_wider(names_from= risk_level, values_from = cr_reached)
@@ -75,7 +87,7 @@ df_cr_waf<-df_cr %>%
 waffle(df_cr_waf, rows=10, size=1.25, flip=TRUE, reverse=TRUE,
        colors= c("#D06471", "#F5C966", "#53968C"), legend_pos = "none")
 
-ggsave("Images/2022_arm/cr_gr_waffle.png",
+ggsave("Images/2024_arm/cr_gr_waffle.png",
        height = 7,
        width = 7)
 
